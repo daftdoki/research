@@ -1,0 +1,6 @@
+Python currently has an unofficial equivalent to Tailscale's tsnet Go library via [`libtailscale`](https://github.com/tailscale/libtailscale) with Python bindings, which lets developers embed a Tailscale node directly in a Python process. However, the library is immature: its build is broken due to upstream dependency issues as of mid-2025, requires manual compilation from source, and lacks a pip-installable package. The Python API exposes a minimalist interface (raw file descriptors, no asyncio support, basic authentication), substantially less complete than tsnet's Go implementation. Existing PyPI packages (like [`tailscale`](https://pypi.org/project/tailscale/)) are limited to API clients and do not provide in-process networking. For production use, options include proxying via the Tailscale daemon or writing a Go sidecar using tsnet.
+
+Key findings:
+- Official Python bindings exist in [`libtailscale`](https://github.com/tailscale/libtailscale/tree/main/python), but require expert-level build steps and are not currently production-ready.
+- No pip-installable, robust Python equivalent to tsnet is available; all alternatives involve either indirect usage or dependent daemons.
+- The Python API is limited to listening/accepting connections with minimal authentication integration and no advanced features (e.g., HTTPS cert helpers).

@@ -1,5 +1,10 @@
 # Python Equivalent of Tailscale's tsnet
 
+<!-- AI-GENERATED-NOTE -->
+> [!NOTE]
+> This is an AI-generated research report. All text and code in this report was created by an LLM (Large Language Model). For more information on how these reports are created, see the [main research repository](https://github.com/daftdoki/research).
+<!-- /AI-GENERATED-NOTE -->
+
 ## Question / Goal
 
 Tailscale's `tsnet` is a Go library that lets you embed a Tailscale node directly into a Go application -- no separate Tailscale daemon needed. Does an equivalent exist for Python? This investigation searches for official offerings, third-party libraries, FFI approaches, and alternative integration patterns.
