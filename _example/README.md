@@ -1,5 +1,10 @@
 # Python dict vs list vs set Membership Lookup Performance
 
+<!-- AI-GENERATED-NOTE -->
+> [!NOTE]
+> This is an AI-generated research report. All text and code in this report was created by an LLM (Large Language Model). For more information on how these reports are created, see the [main research repository](https://github.com/daftdoki/research).
+<!-- /AI-GENERATED-NOTE -->
+
 *This is an example project showing the expected format for research reports in this repository.*
 
 ## Question
