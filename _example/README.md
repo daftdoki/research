@@ -1,7 +1,5 @@
 # Python dict vs list vs set Membership Lookup Performance
 
-<!-- not-ai-generated -->
-
 *This is an example project showing the expected format for research reports in this repository.*
 
 ## Question
