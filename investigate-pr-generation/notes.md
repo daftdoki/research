@@ -18,72 +18,64 @@ Understand who or what generates the PR text (title, body) in Simon Willison's o
   - No _summary.md creation
 - **KEY FINDING: ZERO instructions about PR creation, PR descriptions, including prompts, or session links.**
 
-### 3. Examined closed PRs
-Looked at multiple PRs to identify who creates them and what the body contains:
+### 3. Examined closed PRs — first pass
+Looked at multiple PRs to identify who creates them and what the body contains.
 
-**PR #106** (Claude Code) - "SQLite WAL mode works correctly across Docker containers"
-- Author: simonw, co-authored by Claude Opus 4.6
-- Body: structured summary of the research
-- Session link: yes (claude.ai/code/session_...)
+Initially assumed all PRs were created by the platforms as a built-in behavior. The user pointed out that Claude Code does NOT automatically file PRs in their experience. This led to a deeper investigation.
 
-**PR #100** (Claude Code) - "Add comprehensive research on Node.js sandboxing"
-- Author: Claude, merged by simonw
-- Body: documentation list, working examples, critical findings
-- Session links in commits
+### 4. Second pass — who actually opens the PRs?
 
-**PR #95** (Claude Code) - "Python C extension module for syntaqlite"
-- Body includes the ORIGINAL PROMPT verbatim: "Clone... then figure out how to build a Python c extension module..."
-- Summary section follows the prompt
-- Session link: `claude.ai/code/session_019QWNjiqSnC5fSjobyDqT7M`
+Discovered TWO distinct patterns:
 
-**PR #91** (Claude Code) - "Add Rust word cloud CLI generator"
-- Body starts with requirements/prompt block, then Summary, Key Changes sections
-- Session link: `claude.ai/code/session_01JGwGX2yzxB3QGf6XqX2vYy`
+**Pattern A: PRs opened by `@claude` (GitHub App/bot)**
+- PR #84: Author @claude. Body is a summary of findings.
+- PR #93: Author @claude. Body has "Key Changes", "Implementation Details" sections + session link.
+- PR #98: Author @claude. Body STARTS with the original prompt verbatim ("Investigate the pdfium-render Rust crate..."), followed by a summary section and session link.
 
-**PR #86** (Claude Code) - "Investigate SQLite Hamming distance"
-- Body: short description
-- Session link: `claude.ai/code/session_01JRYBLaG7C9Mw5Ve4JDgXBJ`
+**Pattern B: PRs opened by `@simonw` (human)**
+- PR #82: Author @simonw. Body starts with a summary, no prompt. Session link in commits.
+- PR #106: Author @simonw. Co-authored-by Claude. Body is a research summary.
 
-**PR #79** (Claude Code) - "Compile cysqlite to WebAssembly"
-- Body includes original task instructions verbatim
-- Session link: `claude.ai/code/session_015BFzELMSQVMZPD5psNzuqF`
+**Pattern C: Other tools**
+- PR #10: "ChatGPT Codex Connector" GitHub App. Has "codex" label. Body includes prompt + chatgpt.com session link.
+- PR #102: Copilot. Body is a short summary + agent session link.
 
-**PR #10** (Codex Cloud) - "h3o-python" 
-- Created by ChatGPT Codex Connector (GitHub App)
-- Body includes original Codex prompt verbatim
-- Session link: `chatgpt.com/s/cd_69091eb8fcfc81919d26d2d8063157ca`
+### 5. Claude Code on the web documentation
+Key excerpt from docs (code.claude.com):
+- "Review changes in diff view, iterate with comments, then create a pull request"
+- "Completion: You're notified when finished and can create a PR with the changes"
+- "Outcome: When Claude completes its work, it will push the branch to remote. You will be able to create a PR for the branch."
 
-**PR #102** (GitHub Copilot) - "Pretty-print JSON files"
-- Created by Copilot
-- Body: short summary
-- Session link: GitHub agent session URL
+This confirms: Claude Code on the web does NOT automatically create PRs. The user must trigger PR creation.
 
-### 4. Checked Claude Code on the web documentation
-- Docs at code.claude.com describe the workflow:
-  1. User submits a task
-  2. Claude Code runs on cloud VM
-  3. Changes are pushed to a branch
-  4. User reviews diff in web UI
-  5. User clicks "Create PR" to create the pull request
-- The docs say: "Review changes in diff view, iterate with comments, then create a pull request"
-- The platform generates the PR body when the user clicks "Create PR"
+### 6. Connecting the dots
 
-### 5. Checked Simon's blog post
-- Simon says agents work on "fire-and-forget basis" where the tool "churns away on a server somewhere and when it's done it files a pull request"
-- He says "The commit history for each one usually links to the prompt and sometimes the transcript"
-- He doesn't explicitly describe the PR body generation mechanism
+The `@claude` GitHub App is installed on simonw/research. When the user clicks "Create PR" in the Claude Code web UI:
+1. The platform generates a PR body (via Claude or template)
+2. The PR is created through the Claude GitHub App, so the author shows as `@claude`
+3. The body typically includes the original prompt and a session link
 
-## Key Findings
+When Simon creates PRs through other means (GitHub UI, CLI), the author shows as `@simonw` and the format differs.
 
-1. **The PR text is generated by the async coding agent platforms themselves** as a built-in product feature — NOT by any repo configuration.
+For daftdoki/research PR #1: opened by `daftdoki` (the user), body has `## Summary` / `## Test plan` / session link format — this matches the Claude Code system prompt's prescribed format for `gh pr create`, suggesting it may have been created by Claude running `gh pr create` in the CLI, or via the web UI under the user's account.
 
-2. **Different tools generate different PR formats:**
-   - Claude Code on the web: prompt + structured summary + `claude.ai/code/session_...` link
-   - OpenAI Codex Cloud: prompt + summary + `chatgpt.com/s/...` link
-   - GitHub Copilot agent: summary + GitHub agent session link
+## Key Findings (Revised)
 
-3. **AGENTS.md has no PR-related instructions.** The prompt/transcript inclusion is automatic platform behavior.
+1. **Claude Code does NOT automatically file PRs.** The user must click "Create PR" in the web UI or otherwise trigger PR creation.
 
-4. **The PR author shows as `simonw`** because the tools authenticate through Simon's GitHub credentials, but the content is AI-generated.
+2. **The Claude Code web UI's "Create PR" button** creates PRs through the Claude GitHub App (`@claude`), which is why those PRs show a bot as the author.
 
-5. **Claude Code on the web's workflow**: user submits task → Claude works → user reviews diff → clicks "Create PR" → platform generates PR body with prompt, summary, and session link.
+3. **The PR body is generated by the platform** when the user clicks "Create PR." For `@claude`-authored PRs, the body typically includes:
+   - The original prompt/task (often verbatim at the top)
+   - A structured summary of changes
+   - A `claude.ai/code/session_...` link
+
+4. **PRs opened by `@simonw`** have a different format and were likely created through other means (GitHub UI, `gh pr create` in CLI, or manual creation).
+
+5. **Other tools auto-file PRs differently:**
+   - Codex Cloud: auto-files via ChatGPT Codex Connector GitHub App
+   - Copilot: auto-files via GitHub Copilot
+
+6. **AGENTS.md has no PR-related instructions.** The prompt/transcript inclusion is entirely a platform feature.
+
+7. **There's still ambiguity** about exactly what generates the PR body text — whether Claude is asked to summarize the session one more time, or whether the platform constructs it from session metadata. The variation in body formats across PRs suggests Claude generates it dynamically.
