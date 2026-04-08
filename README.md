@@ -2,6 +2,8 @@
 
 Research projects carried out by AI tools. Each directory is a separate research project carried out by an LLM tool — usually [Claude Code](https://www.claude.com/product/claude-code). Every single line of text and code was written by an LLM.
 
+This workflow is based on Simon Willison's [research repository](https://github.com/simonw/research) and his approach to [async code research with AI agents](https://simonwillison.net/2025/Nov/6/async-code-research/). The agent instructions, project structure, cogapp-powered README generation, and CI pipeline are all adapted from his original design.
+
 Prompts and links to transcripts are included in [the PRs](https://github.com/daftdoki/research/pulls?q=is%3Apr+is%3Aclosed) that added each report, or in [the commits](https://github.com/daftdoki/research/commits/main/).
 
 *Times shown are in UTC.*
