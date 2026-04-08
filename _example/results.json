@@ -1,0 +1,42 @@
+{
+  "10": {
+    "list_found": 82.3,
+    "list_missing": 135.7,
+    "dict_found": 28.1,
+    "dict_missing": 24.9,
+    "set_found": 25.6,
+    "set_missing": 22.8
+  },
+  "100": {
+    "list_found": 695.4,
+    "list_missing": 1312.8,
+    "dict_found": 28.4,
+    "dict_missing": 25.1,
+    "set_found": 26.0,
+    "set_missing": 23.2
+  },
+  "1000": {
+    "list_found": 6843.2,
+    "list_missing": 13502.6,
+    "dict_found": 29.0,
+    "dict_missing": 25.3,
+    "set_found": 26.3,
+    "set_missing": 23.5
+  },
+  "10000": {
+    "list_found": 68241.5,
+    "list_missing": 134897.1,
+    "dict_found": 29.7,
+    "dict_missing": 25.8,
+    "set_found": 27.1,
+    "set_missing": 24.0
+  },
+  "100000": {
+    "list_found": 681053.9,
+    "list_missing": 1350421.7,
+    "dict_found": 34.2,
+    "dict_missing": 28.5,
+    "set_found": 31.8,
+    "set_missing": 26.3
+  }
+}
