@@ -10,7 +10,7 @@ Your README.md should follow this general structure:
 
 1. **Title** (`# ...`): A clear, descriptive title for the investigation.
 2. **Question / Goal**: State what you set out to investigate or build. Frame it so a reader immediately understands the purpose. Include a link to the [Original Prompt](#original-prompt) section at the bottom.
-3. **Answer / Summary**: Lead with the conclusion. Give the short answer up front before the details.
+3. **Answer / Summary**: Lead with the conclusion. Give the short answer up front before the details. End with: "For additional and more detailed information see the [research notes](notes.md)."
 4. **Methodology / Experiment**: Describe what you did — the setup, tools used, steps taken. Include code blocks, commands, or tables where they help.
 5. **Results**: Present what you found — data, output, observations. Use tables for comparative data.
 6. **Analysis** (if applicable): Interpret the results. Explain why things worked or didn't, trade-offs, caveats.
