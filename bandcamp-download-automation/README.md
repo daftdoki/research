@@ -1,5 +1,10 @@
 # Automating Bandcamp Collection Downloads and Reconciliation
 
+<!-- AI-GENERATED-NOTE -->
+> [!NOTE]
+> This is an AI-generated research report. All text and code in this report was created by an LLM (Large Language Model). For more information on how these reports are created, see the [main research repository](https://github.com/daftdoki/research).
+<!-- /AI-GENERATED-NOTE -->
+
 ## Question
 
 Is there a way to automate the process of reconciling a local music library against Bandcamp purchases and downloading any missing albums? The manual workflow -- browsing the Bandcamp collection page, checking what's already downloaded, and individually grabbing new purchases -- is tedious and error-prone.
