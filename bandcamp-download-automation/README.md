@@ -13,7 +13,7 @@ Is there a way to automate the process of reconciling a local music library agai
 
 **Yes, several existing open-source tools solve this problem.** The best option for ongoing automated sync is [**bandcampsync**](https://github.com/meeb/bandcampsync), a Python tool (also available as a Docker container) that scans your local library, compares it against your full Bandcamp collection, and downloads only what's missing. It supports scheduled daily runs, FLAC and other lossless formats, and parallel downloads.
 
-The one unavoidable manual step across *all* tools: **you must periodically export your Bandcamp session cookies from your browser**, because Bandcamp's login uses CAPTCHA and cannot be automated. In practice this means running a browser extension every few weeks.
+The one unavoidable manual step across *all* tools: **you must periodically export your Bandcamp session cookies from your browser**, because Bandcamp's login uses CAPTCHA and cannot be automated. In practice this means running a browser extension every few weeks. For additional and more detailed information see the [research notes](notes.md).
 
 ## Tool Landscape
 

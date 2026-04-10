@@ -13,7 +13,7 @@ How does membership testing (`x in collection`) scale for Python `dict`, `set`, 
 
 ## Answer
 
-**dict and set are constant-time (O(1)); list is linear (O(n)).** At 100,000 elements, a list lookup for a missing element takes ~1.35ms — roughly 50,000x slower than a dict or set lookup (~27ns). Dict and set performance is essentially identical and does not degrade with size.
+**dict and set are constant-time (O(1)); list is linear (O(n)).** At 100,000 elements, a list lookup for a missing element takes ~1.35ms — roughly 50,000x slower than a dict or set lookup (~27ns). Dict and set performance is essentially identical and does not degrade with size. For additional and more detailed information see the [research notes](notes.md).
 
 ## Methodology
 
