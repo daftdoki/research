@@ -86,6 +86,46 @@ Find or build a way to automatically reconcile and download Bandcamp purchases i
 - curl-cffi handles Cloudflare challenges
 - Clean directory structure compatible with Plex/Jellyfin
 
+### Bandcamp Technical Internals (from reverse-engineering research)
+
+#### Authentication
+- Cookie-based session auth; the `identity` cookie is the critical token
+  - Format: `7 <base64>= {"ex":<expiry>,"id":<user_id>}`
+- Login page has Google reCAPTCHA, preventing automated login
+- Undocumented OAuth login flow exists: `POST /oauth_login` with 3-step challenge-response
+  (HMAC-SHA256 challenge via `X-Bandcamp-Dm`, Hashcash proof-of-work via `X-Bandcamp-Pow`, then Bearer token)
+  - Not practically useful yet since it's undocumented and may require solving CAPTCHAs anyway
+
+#### Collection API Endpoints
+- `POST /api/fancollection/1/collection_items` - paginated collection listing
+  - First ~20 items embedded in page HTML (`<div id="pagedata" data-blob="{JSON}">`)
+  - Remaining items fetched via POST with `older_than_token` cursor (5 colon-separated fields)
+- `POST /api/fancollection/1/hidden_items` - hidden collection items
+- `POST /api/fancollection/1/search_items` - search within own collection
+- `GET /api/fan/2/collection_summary` - collection summary with tralbum_lookup
+- Additional endpoints for wishlist, followers, following, gifts, feed updates
+
+#### Download Flow
+1. Collection API provides `redownload_urls` mapping items to download pages
+2. Download pages list available formats as "stat URLs" (not direct downloads)
+3. Convert `/download/` path to `/statdownload/` with added `.rand` and `.vrs=1` params
+4. The `/statdownload/` endpoint returns JSON with actual CDN `download_url` on `p4.bcbits.com`
+5. CDN URLs are signed and time-limited
+
+#### Anti-Automation Measures
+- Login reCAPTCHA
+- Proof-of-work challenges on undocumented OAuth flow
+- Download speed throttling (~50 KiB/s after first MB of a file)
+- User-Agent enforcement (403 without one)
+- Signed, time-limited CDN URLs
+- Possible TLS fingerprint inspection (hence why bandcampsync uses curl-cffi)
+
+#### Post-Songtradr Acquisition (Nov 2023)
+- Core site and collection pages remain structurally intact
+- ~50% staff layoffs but download workflow unaffected
+- New features (Playlists, Clubs, Stripe payments) haven't disrupted download tools
+- Some tools report intermittent data retrieval errors
+
 ### Remaining Manual Step
 No tool can fully avoid the cookie export step. The most automated workflow is:
 1. Export cookies once (and re-export when they expire)
