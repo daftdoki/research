@@ -7,7 +7,7 @@
 
 ## Question
 
-Is there a way to automate the process of reconciling a local music library against Bandcamp purchases and downloading any missing albums? The manual workflow -- browsing the Bandcamp collection page, checking what's already downloaded, and individually grabbing new purchases -- is tedious and error-prone.
+Is there a way to automate the process of reconciling a local music library against Bandcamp purchases and downloading any missing albums? The manual workflow -- browsing the Bandcamp collection page, checking what's already downloaded, and individually grabbing new purchases -- is tedious and error-prone. ([original prompt](#original-prompt))
 
 ## Answer
 
@@ -143,3 +143,7 @@ Uses a cache file to track what's been downloaded, so subsequent runs are increm
 
 - `notes.md` -- Research notes and work log with detailed findings on each tool
 - `README.md` -- This report
+
+## Original Prompt
+
+> I buy music from Bandcamp, which makes lossless digital downloads available. I keep these in a directory on my file system. However, Bandcamp does not provide an easy way to make sure I have downloaded everything automatically and I sometimes have to reconcile this manually myself by browsing my collection on their website and making sure I have the files downloaded. Also, when I purchase new music I have to manually grab them and process them into my directory structure. Is there a way to automate this reconciliation and new purchase download? An existing program, code, or other workflow? If not, can we build it?

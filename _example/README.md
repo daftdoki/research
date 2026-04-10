@@ -9,7 +9,7 @@
 
 ## Question
 
-How does membership testing (`x in collection`) scale for Python `dict`, `set`, and `list` across collection sizes from 10 to 100,000 elements?
+How does membership testing (`x in collection`) scale for Python `dict`, `set`, and `list` across collection sizes from 10 to 100,000 elements? ([original prompt](#original-prompt))
 
 ## Answer
 
@@ -48,3 +48,7 @@ Nanoseconds per lookup:
 - `benchmark.py` — Benchmark script using `timeit`; prints a table and saves JSON
 - `results.json` — Raw benchmark results in nanoseconds per lookup
 - `notes.md` — Research notes and work log
+
+## Original Prompt
+
+> How does membership testing (`x in collection`) scale for Python `dict`, `set`, and `list` across collection sizes from 10 to 100,000 elements?

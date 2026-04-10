@@ -9,12 +9,13 @@ Build a README.md report at the end of the investigation.
 Your README.md should follow this general structure:
 
 1. **Title** (`# ...`): A clear, descriptive title for the investigation.
-2. **Question / Goal**: State what you set out to investigate or build. Frame it so a reader immediately understands the purpose.
+2. **Question / Goal**: State what you set out to investigate or build. Frame it so a reader immediately understands the purpose. Include a link to the [Original Prompt](#original-prompt) section at the bottom.
 3. **Answer / Summary**: Lead with the conclusion. Give the short answer up front before the details.
 4. **Methodology / Experiment**: Describe what you did — the setup, tools used, steps taken. Include code blocks, commands, or tables where they help.
 5. **Results**: Present what you found — data, output, observations. Use tables for comparative data.
 6. **Analysis** (if applicable): Interpret the results. Explain why things worked or didn't, trade-offs, caveats.
 7. **Files**: List the files in the project folder and what each one does.
+8. **Original Prompt**: The verbatim text of the user's original prompt, quoted in a blockquote (`>`). This should always be the last section of the README.
 
 Adapt this structure to fit the investigation. A benchmark needs detailed results tables. A proof-of-concept needs setup instructions. A bug investigation needs reproduction steps. Use your judgment — the structure should serve the content, not the other way around.
 
