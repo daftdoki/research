@@ -1,46 +1,41 @@
-# Custom code-server image that bakes in Claude Code so the `claude` CLI is
-# available inside the VS Code integrated terminal alongside a full dev tool
-# chain managed by mise.
+# Custom code-server image.
 #
-# Built by docker compose from the rendered compose file in the containers
-# role; rebuilt on each `ansible-pull` run so it tracks upstream updates.
+# The only job of this image is to reshape the upstream `codercom/code-server`
+# user so its $HOME matches the host's /home/{{ devvm_user }}. Once we bind
+# mount the host home directory into the container, the integrated terminal
+# reads the host's `.bashrc`, the host's mise install in ~/.local/share/mise,
+# the host's Claude Code binary in ~/.local/bin/claude (installed by the
+# `dev_tools` Ansible role via the official native installer), and the host's
+# chezmoi-managed dotfiles. Nothing needs to be duplicated inside the image.
 #
-# Why a custom image instead of installing at startup:
-#   - deterministic start time (no npm install on every boot)
-#   - image is cached and portable
-#   - watchtower can still pull the upstream codercom/code-server base
-#     during its update window; the next ansible-pull run rebuilds on top.
+# That means:
+#   - NO nodejs / npm install (Claude Code is a standalone Bun-compiled binary
+#     now, so the code-server container no longer needs Node at all for the
+#     `claude` command)
+#   - NO @anthropic-ai/claude-code npm global (the host install is shared)
+#   - NO in-image mise install (the host install is shared)
+#
+# The image is rebuilt on every `ansible-pull` so it tracks upstream
+# code-server releases naturally.
 
 ARG CODE_SERVER_VERSION=latest
 FROM codercom/code-server:${CODE_SERVER_VERSION}
 
 USER root
 
-# Node.js (required for the Claude Code CLI) plus a handful of things that
-# match the SSH shell experience so the integrated terminal feels identical.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates curl git sudo jq unzip \
-        python3 python3-venv python3-pip pipx \
-        build-essential \
-    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/*
+ARG DEVVM_USER=me
+ARG DEVVM_UID=1000
 
-# Claude Code CLI - baked in so `which claude` works in the integrated terminal.
-RUN npm install -g @anthropic-ai/claude-code
+# Rename the built-in `coder` user to the host dev user so $HOME inside the
+# container lines up with the bind-mounted host home directory at the same
+# absolute path. This is what makes `source ~/.bashrc` just work and lets
+# mise/claude resolve naturally via PATH.
+RUN if id coder >/dev/null 2>&1; then \
+        usermod -d "/home/${DEVVM_USER}" -l "${DEVVM_USER}" coder \
+        && groupmod -n "${DEVVM_USER}" coder || true; \
+    fi \
+ && install -d -m 0755 -o "${DEVVM_USER}" -g "${DEVVM_USER}" "/home/${DEVVM_USER}"
 
-# mise for the same reason: the user's Python/uv/Go/Rust toolchains managed
-# on the host by the `mise` Ansible role are also usable here. When the home
-# directory is bind-mounted into this container, the mise state in
-# ~/.local/share/mise is shared too, so `python`, `uv`, `node`, etc. all
-# resolve to the same versions the SSH shell sees.
-RUN curl -fsSL https://mise.run | sh \
-    && mv /root/.local/bin/mise /usr/local/bin/mise
-
-# The coder user is the default uid 1000 in the upstream image. Activate
-# mise for its shell so the integrated terminal picks it up automatically.
-RUN printf '\n# mise\nexport PATH="$HOME/.local/bin:$PATH"\neval "$(mise activate bash)"\n' \
-        >> /home/coder/.bashrc
-
-USER coder
+USER ${DEVVM_USER}
+ENV HOME=/home/${DEVVM_USER}
+WORKDIR /home/${DEVVM_USER}

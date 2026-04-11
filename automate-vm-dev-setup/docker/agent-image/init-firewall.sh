@@ -10,20 +10,22 @@
 set -euo pipefail
 
 # Allowed destinations. Add to this list judiciously.
+# Note: registry.npmjs.org was dropped when Claude Code switched from an npm
+# package to a standalone Bun-compiled binary. The agent image bakes the
+# binary in at build time, so no npm install happens at runtime.
 ALLOWED_DOMAINS=(
     api.anthropic.com
     statsig.com
     statsig.anthropic.com
     sentry.io
-    registry.npmjs.org
     github.com
     api.github.com
     objects.githubusercontent.com
     codeload.github.com
     pypi.org
     files.pythonhosted.org
-    deb.debian.org
-    security.debian.org
+    archive.ubuntu.com
+    security.ubuntu.com
 )
 
 ipset create -exist allowed-domains hash:ip

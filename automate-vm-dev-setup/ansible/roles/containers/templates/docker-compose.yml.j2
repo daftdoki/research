@@ -1,42 +1,89 @@
 # Rendered by Ansible - do not edit by hand.
-# Defines the always-on services for the dev VM:
-#   - code-server        : browser VS Code
-#   - filebrowser        : home dir file manager
-#   - watchtower         : automatic image updates
-#   - claude-agent-N     : sandboxed Claude Code instances
-#   - ts-code / ts-files : tailscale sidecars exposing the above via MagicDNS
+# Defines the always-on services for the dev VM. Everything lives under a
+# SINGLE tailnet hostname ({{ devvm_tailnet_hostname }}.<tailnet>.ts.net),
+# routed by a small Caddy portal:
+#
+#   https://{{ devvm_tailnet_hostname }}.<tailnet>.ts.net/             ->  landing page
+#   https://{{ devvm_tailnet_hostname }}.<tailnet>.ts.net/code/        ->  code-server
+#   https://{{ devvm_tailnet_hostname }}.<tailnet>.ts.net/files/       ->  filebrowser
+#   https://{{ devvm_tailnet_hostname }}.<tailnet>.ts.net/desktop/     ->  webtop (optional)
+#   https://{{ devvm_tailnet_hostname }}.<tailnet>.ts.net/agents/N/    ->  claude agent N
+#
+# Design notes:
+#   - ts-devvm is the only tailscale sidecar. It publishes one MagicDNS name
+#     and terminates HTTPS via TS_SERVE_CONFIG, forwarding all traffic to
+#     the Caddy portal at localhost:8000 (shared network namespace).
+#   - Caddy reverse-proxies each service over the default docker bridge
+#     network using docker DNS (code-server, filebrowser, webtop, agent-N).
+#   - Agent containers KEEP their own network namespace so their ipset
+#     firewall only affects themselves. They attach to the same docker
+#     network so Caddy can reach their ttyd ports by container name.
+#   - containrrr/watchtower was archived in Dec 2025. Image updates are
+#     driven by a systemd timer in the `updates` role.
 
 name: devvm
 
-x-tailscale-sidecar: &tailscale-sidecar
-  image: tailscale/tailscale:latest
-  restart: unless-stopped
-  cap_add: [NET_ADMIN, NET_RAW]
-  devices: [/dev/net/tun]
-  volumes:
-    - /var/lib/tailscale
-    - /dev/net/tun:/dev/net/tun
-
 services:
 
+  # -------- Single tailscale sidecar = single tailnet hostname ------------
+  # Everything that needs to be reachable from the tailnet shares this
+  # network namespace. One cert, one MagicDNS name, one ACL target.
+  ts-devvm:
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    hostname: {{ devvm_tailnet_hostname }}
+    cap_add: [NET_ADMIN, NET_RAW]
+    devices: [/dev/net/tun]
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY_DEVVM}
+      TS_HOSTNAME: {{ devvm_tailnet_hostname }}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+      TS_EXTRA_ARGS: "--advertise-tags=tag:devvm"
+    volumes:
+      - ./ts-devvm-state:/var/lib/tailscale
+      - ./ts-devvm-config:/config
+      - /dev/net/tun:/dev/net/tun
+
+  # -------- Portal: Caddy reverse proxy + landing page --------------------
+  # Shares ts-devvm's network namespace so Tailscale can forward HTTPS
+  # straight to it without the packets ever leaving the shared netns. From
+  # Caddy's POV it also sees the regular docker bridge (because ts-devvm is
+  # attached to the default network) and can resolve other services by
+  # name (code-server, filebrowser, webtop, agent-0...).
+  portal:
+    image: {{ portal_image }}
+    restart: unless-stopped
+    network_mode: "service:ts-devvm"
+    volumes:
+      - {{ compose_dir }}/portal/Caddyfile:/etc/caddy/Caddyfile:ro
+      - {{ compose_dir }}/portal/site:/usr/share/caddy:ro
+      - portal-data:/data
+      - portal-config:/config
+    depends_on:
+      - ts-devvm
+
   # -------- VS Code in the browser ----------------------------------------
-  # Built from ../code-server-image, which extends codercom/code-server with
-  # Node.js + Claude Code + mise so `claude`, `python`, `uv`, `node`, etc.
-  # are all on PATH in the integrated terminal. {{ shared_workdir }} is
-  # bind-mounted at the same absolute path as on the host so the working
-  # directory is identical to what you see over SSH.
+  # Built from ../code-server-image, which reshapes the upstream image so
+  # its $HOME matches the host's /home/{{ devvm_user }}. Node, mise, claude,
+  # dotfiles, and the shared workdir are all read out of the bind-mounted
+  # host home directory - nothing is duplicated in the image.
+  #
+  # Reachable at https://{{ devvm_tailnet_hostname }}.<tailnet>.ts.net/code/
+  # (the portal proxies with path stripping and X-Forwarded-Prefix, and
+  # code-server serves its assets relative to the proxied path).
   code-server:
     build:
       context: ../code-server-image
       dockerfile: Dockerfile
       args:
         CODE_SERVER_VERSION: {{ code_server_version | default('latest') }}
+        DEVVM_USER: {{ devvm_user }}
+        DEVVM_UID: "{{ devvm_user_uid }}"
     image: devvm/code-server:local
     restart: unless-stopped
-    user: "{{ devvm_user_uid }}:{{ devvm_user_uid }}"
     environment:
       DOCKER_USER: "{{ devvm_user }}"
-      PASSWORD_FILE: /run/secrets/code_password
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     volumes:
       - /home/{{ devvm_user }}:/home/{{ devvm_user }}
@@ -49,20 +96,8 @@ services:
       --install-extension {{ ext }}
       {% endfor %}
       {{ shared_workdir }}
-    network_mode: "service:ts-code"
-
-  ts-code:
-    <<: *tailscale-sidecar
-    hostname: devvm-code
-    environment:
-      TS_AUTHKEY: ${TS_AUTHKEY_CODE}
-      TS_HOSTNAME: devvm-code
-      TS_STATE_DIR: /var/lib/tailscale
-      TS_SERVE_CONFIG: /config/code-serve.json
-      TS_EXTRA_ARGS: "--advertise-tags=tag:devvm"
-    volumes:
-      - ./ts-code-state:/var/lib/tailscale
-      - ./ts-code-config:/config
+    expose:
+      - "8080"
 
 {% if webtop_enabled | default(false) %}
   # -------- Optional full Linux desktop in the browser -------------------
@@ -72,10 +107,15 @@ services:
   # keeping all surfaces in sync: there is only one filesystem, one set of
   # dotfiles, one mise install, one git config, one .ssh directory, one
   # VS Code profile. Impossible to drift because nothing is duplicated.
+  #
+  # KasmVNC's websocket layer does NOT play nicely with path-prefix reverse
+  # proxying in 2026, so the portal proxies the desktop via a rewrite rule
+  # that rewrites the root path and forwards the Upgrade headers. See
+  # portal/Caddyfile.j2. If future upstream support for BASE_URL lands this
+  # can become a plain handle_path block.
   webtop:
     image: {{ webtop_image }}
     restart: unless-stopped
-    # Webtop needs some capabilities for its desktop session manager.
     security_opt:
       - seccomp:unconfined
     environment:
@@ -83,36 +123,20 @@ services:
       PGID: "{{ devvm_user_uid }}"
       TZ: "{{ webtop_timezone }}"
       TITLE: "devvm desktop"
-      # Extra apt packages to install on first boot (linuxserver mod).
       DOCKER_MODS: linuxserver/mods:universal-package-install
       INSTALL_PACKAGES: "{{ webtop_apt_packages | join('|') }}"
     volumes:
-      # $HOME IS the host's /home/{{ devvm_user }} - that's the whole trick.
       - /home/{{ devvm_user }}:/config
-      # Expose the shared workdir at the same absolute path so paths match
-      # exactly what the SSH shell, code-server, and the agents see.
       - {{ shared_workdir }}:{{ shared_workdir }}
-      # Docker socket so you can use docker / docker compose from inside
-      # the desktop's terminal too, against the same daemon.
       - /var/run/docker.sock:/var/run/docker.sock
-    shm_size: "2gb"     # browsers need this
-    network_mode: "service:ts-desktop"
-
-  ts-desktop:
-    <<: *tailscale-sidecar
-    hostname: devvm-desktop
-    environment:
-      TS_AUTHKEY: ${TS_AUTHKEY_DESKTOP}
-      TS_HOSTNAME: devvm-desktop
-      TS_STATE_DIR: /var/lib/tailscale
-      TS_SERVE_CONFIG: /config/desktop-serve.json
-      TS_EXTRA_ARGS: "--advertise-tags=tag:devvm"
-    volumes:
-      - ./ts-desktop-state:/var/lib/tailscale
-      - ./ts-desktop-config:/config
+    shm_size: "2gb"
+    expose:
+      - "3000"
 {% endif %}
 
   # -------- Web-based file manager for home dir ---------------------------
+  # filebrowser has native --baseurl support which is exactly what path-
+  # based reverse proxying wants.
   filebrowser:
     image: {{ filebrowser_image }}
     restart: unless-stopped
@@ -120,25 +144,23 @@ services:
     volumes:
       - /home/{{ devvm_user }}:/srv
       - ./filebrowser:/database
-    network_mode: "service:ts-files"
-
-  ts-files:
-    <<: *tailscale-sidecar
-    hostname: devvm-files
-    environment:
-      TS_AUTHKEY: ${TS_AUTHKEY_FILES}
-      TS_HOSTNAME: devvm-files
-      TS_STATE_DIR: /var/lib/tailscale
-      TS_SERVE_CONFIG: /config/files-serve.json
-      TS_EXTRA_ARGS: "--advertise-tags=tag:devvm"
-    volumes:
-      - ./ts-files-state:/var/lib/tailscale
-      - ./ts-files-config:/config
+    command: >
+      --address 0.0.0.0
+      --port 80
+      --baseurl /files
+      --database /database/filebrowser.db
+      --root /srv
+    expose:
+      - "80"
 
   # -------- Claude agent pool --------------------------------------------
   # Each agent is a locked-down container with network-allowlist firewall
   # (lifted from anthropics/claude-code/.devcontainer/init-firewall.sh).
   # Safe to run `claude --dangerously-skip-permissions` inside.
+  #
+  # Each agent's ttyd is reverse-proxied by the portal at
+  # /agents/<N>/ (ttyd -b applies the same path prefix inside the container
+  # so its generated assets line up).
 {% for agent in claude_agents %}
   {{ agent.name }}:
     build:
@@ -147,35 +169,22 @@ services:
     image: devvm/claude-agent:local
     restart: unless-stopped
     hostname: {{ agent.name }}
-    cap_add: [NET_ADMIN]       # needed so init-firewall.sh can write ipset rules
+    cap_add: [NET_ADMIN]
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       AGENT_NAME: {{ agent.name }}
     volumes:
-      # Per-agent scratch workspace (isolated).
       - {{ agent.workspace }}:/workspace
-      # Common working directory at the same absolute path as the host so
-      # anything produced here is immediately visible over SSH and inside
-      # code-server. This is the hand-off point between the constrained
-      # environment and the rest of the VM.
       - {{ shared_workdir }}:{{ shared_workdir }}
     working_dir: {{ shared_workdir }}
-    # ttyd gives each agent a browser terminal on its own internal port;
-    # a single reverse proxy in front (see ts-agents) exposes them all.
+    expose:
+      - "7681"
     command: >
-      ttyd -p 7681 -W -c user:${CLAUDE_TERMINAL_PASSWORD:-changeme}
+      ttyd -p 7681 -b /agents/{{ loop.index0 }}
+           -W -c user:${CLAUDE_TERMINAL_PASSWORD:-changeme}
            bash -lc "cd {{ shared_workdir }} && claude --dangerously-skip-permissions"
 {% endfor %}
 
-  # -------- Watchtower: keep all of the above up to date ------------------
-  watchtower:
-    image: {{ watchtower_image }}
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: >
-      --cleanup
-      --schedule "{{ watchtower_schedule }}"
-      --label-enable
-    labels:
-      - com.centurylinklabs.watchtower.enable=true
+volumes:
+  portal-data:
+  portal-config:

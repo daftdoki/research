@@ -1,6 +1,6 @@
 ---
 # Tools that don't fit under mise cleanly (usually because they're already
-# system packages, or are npm globals like claude code).
+# system packages, or have their own first-party installer).
 
 - name: Install chezmoi for dotfiles
   ansible.builtin.shell: |
@@ -15,14 +15,17 @@
   args:
     creates: "/home/{{ devvm_user }}/.local/share/chezmoi"
 
-- name: Install claude-code globally via mise-managed node
+# Claude Code ships an official native installer (Bun-compiled single binary,
+# no Node.js / no npm). It self-updates in the background, so we don't need
+# to pin or upgrade it ourselves.
+#   https://claude.ai/install.sh  ->  ~/.local/bin/claude
+- name: Install Claude Code via the official native installer
   become_user: "{{ devvm_user }}"
   ansible.builtin.shell: |
     set -e
-    source "$HOME/.bashrc"
-    npm install -g @anthropic-ai/claude-code@{{ claude_code_version }}
+    curl -fsSL https://claude.ai/install.sh | bash
   args:
-    executable: /bin/bash
+    creates: "/home/{{ devvm_user }}/.local/bin/claude"
 
 - name: Drop the user's Anthropic API key into their environment
   become_user: "{{ devvm_user }}"

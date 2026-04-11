@@ -433,3 +433,139 @@ Net effect: out-of-band changes get overwritten back to the declared state on th
 - **Native RDP access**: Not enabled by default. If wanted, install `xrdp` in a custom webtop-derived image and expose port 3389 via Tailscale serve. Recommended only if browser access isn't sufficient for some reason (e.g. Microsoft Remote Desktop mobile app ergonomics).
 - **GPU acceleration**: If the underlying VM has a GPU passed through, set `DRINODE` and add `/dev/dri/renderD128`. Selkies will use NVENC/VAAPI for encoding.
 
+---
+
+## Follow-up (R4): watchtower is dead; Claude Code ships a native installer
+
+User noted two things that needed correcting in the April-2026 design:
+
+1. **containrrr/watchtower is archived.** Last commits were in 2023; the official announcement that the project is end-of-maintenance came in late 2025; the GitHub repo was **archived on December 17, 2025**. There are forks (nickfedor/watchtower) and alternatives (Diun, What's Up Docker, Tugtainer), plus non-daemon approaches like Renovate on the config repo and a systemd `docker compose pull && up -d` timer.
+2. **Claude Code now ships a standalone native installer.** It's no longer an npm package. `curl -fsSL https://claude.ai/install.sh | bash` drops a Bun-compiled single binary at `~/.local/bin/claude`. The installer auto-updates in the background. No Node.js, no npm global.
+
+### What I changed for #2 (Claude Code native installer)
+
+- `ansible/roles/dev_tools/tasks/main.yml`: replaced `npm install -g @anthropic-ai/claude-code` with a shell task running the official native installer, idempotent via `creates: ~/.local/bin/claude`.
+- `docker/code-server-image/Dockerfile`: **completely rewritten**. Previously installed nodejs, npm, mise, and claude-code inside the image. Now it doesn't install any of those — instead it uses `usermod` to rename the upstream `coder` user to the host devvm user with `$HOME=/home/<devvm_user>`, so when the host home is bind-mounted into the container the integrated terminal just finds the host's `.bashrc`, the host's mise installs under `~/.local/share/mise`, the host's `claude` binary under `~/.local/bin`, and the host's chezmoi dotfiles. This is strictly better than installing them inside the image because there's literally only one install to reconcile.
+- `docker/agent-image/Dockerfile`: switched base from `node:22-bookworm` to `ubuntu:24.04`; removed `npm install -g @anthropic-ai/claude-code`; runs the native installer at build time as the `agent` user. Renamed the built-in Ubuntu 24.04 `ubuntu` user (uid 1000) to `agent` to preserve the "agent runs at the same uid as the host devvm user" property. The firewall script's allowlist drops `registry.npmjs.org` since no npm traffic happens any more.
+
+### What I changed for #1 (watchtower replacement)
+
+I considered the alternatives:
+
+| Tool | Active? | Model | Fit here |
+|---|---|---|---|
+| nickfedor/watchtower (fork) | Yes | Same as original | Works, but keeps the "silent in-place restart" model |
+| What's Up Docker (WUD) | Yes | Dashboard + optional auto-trigger | Nice dashboard, overkill for a single VM |
+| Diun | Yes | Notify-only | Great for "tell me, don't touch anything" |
+| Tugtainer | Yes (new) | Auto-update + health-check rollback | Too new to trust blind |
+| dockcheck | Yes | Bash + cron | Too minimal, loses template reconciliation |
+| Renovate + CI | Yes | Bumps pinned versions in git via PRs, gated by CI | **Best fit for "testing / user confirmations"** |
+
+**Chosen:** lean on the existing ansible-pull pipeline rather than adopt a second update daemon. The `updates` role now installs two new systemd timers in addition to `mise-upgrade.timer`:
+
+- `devvm-compose-update.timer` runs weekly and executes `docker compose build --pull && docker compose pull && docker compose up -d --remove-orphans` against the rendered compose project. This covers the case where upstream images have new tags but the config repo hasn't changed.
+- `devvm-ansible-pull.timer` runs weekly (different day) and re-runs the full bootstrap script — ansible-pull, which re-renders the compose template, rebuilds local images, pulls upstream, and re-applies. This is the authoritative reconciliation path.
+
+Plus a note in the README about optional Renovate on the config repo as the "test-gated version pinning" story for anyone who wants PR-gated updates.
+
+### Open follow-up items for R4
+
+- Verify that `bootstrap.sh` is actually copied to `/usr/local/sbin/devvm-bootstrap.sh` by the `base` role (referenced by `devvm-ansible-pull.service`). If not, add that.
+- Consider a hook that runs smoke tests after each compose-update timer fire and only commits the new digests if tests pass.
+- If the native installer ever changes its URL or introduces argument flags for pinning, update the `dev_tools` role accordingly.
+
+---
+
+## Follow-up (R5 + R6): single tailnet hostname via portal, and further non-watchtower research
+
+User follow-ups:
+
+> I'd prefer if everything was accessible via the same hostname on my tailnet. Maybe we build a small portal for easily accessing the constituent services or something like that?
+
+> What are some other non-watchtower options for automatically keeping docker images up to date or at least automating updating the pinning of versions based on testing or maybe user confirmations?
+
+### Single-hostname portal design
+
+Before R5 the compose stack had three separate Tailscale sidecars (`ts-code`, `ts-files`, `ts-desktop`), each with its own MagicDNS hostname. That's simple to reason about, but it means three URLs to remember, three ACL targets, and three tailnet nodes per VM.
+
+Research confirmed that in April 2026 Tailscale Serve *does* support subpath routing natively via `--set-path`, but the cleaner approach when you need real reverse-proxy features (websockets, header rewriting, path prefix propagation) is to **run your own reverse proxy inside the sidecar's network namespace** and let Tailscale Serve forward everything on 443 to localhost. This is what the Caddy Community forum and multiple Tailscale blog posts recommend ("four increasingly sophisticated ways to put a service on your tailnet").
+
+So the R5 design is:
+
+- One `ts-devvm` Tailscale sidecar, hostname `devvm`, advertises tag `devvm`.
+- `TS_SERVE_CONFIG` points `devvm.<tailnet>.ts.net:443` at `http://127.0.0.1:8000`.
+- `portal` container (plain `caddy:2`) uses `network_mode: "service:ts-devvm"` so it shares that same netns. From Caddy's POV, 127.0.0.1 *is* where Tailscale hands it traffic.
+- Caddy reverse-proxies per subpath:
+  - `/` → static landing page (rendered HTML)
+  - `/code/*` → `code-server:8080` with `X-Forwarded-Prefix /code`
+  - `/files*` → `filebrowser:80` (filebrowser started with `--baseurl /files`)
+  - `/desktop/*` → `webtop:3000` (with `X-Forwarded-Prefix /desktop` — may need upstream BASE_URL support)
+  - `/agents/N*` → each agent's `ttyd` started with `-b /agents/N`
+- Every backend service **keeps its own network namespace** (no `network_mode: "service:ts-devvm"`) because of a critical detail: agent containers install iptables rules inside their own netns, and if those lived in the shared ts-devvm netns, the agent firewall would take down the whole portal. Each backend is attached to the default docker bridge; Caddy reaches it by Docker DNS.
+- A small `portal-index.html.j2` is rendered by Ansible to give clickable links to all services. The template iterates the `claude_agents` list so adding an agent automatically shows up.
+
+### Per-backend subpath quirks
+
+- **code-server** honors `X-Forwarded-Prefix`. Caddy's `handle_path` strips the `/code/` prefix and the header tells code-server to emit the right asset URLs. WebSockets work through `reverse_proxy` automatically.
+- **filebrowser** has first-class `--baseurl`, which is the cleanest path-based proxy story of any service I looked at. `handle /files*` (not `handle_path`) passes the prefix through and filebrowser serves natively under it.
+- **ttyd** has `-b /agents/N`. Same pattern as filebrowser.
+- **webtop / KasmVNC** is the sketchy one: upstream does not have a clean `BASE_URL` env var for its embedded NoVNC/KasmVNC/Selkies web player. I used `handle_path /desktop/*` with prefix stripping and `X-Forwarded-Prefix`, which should work for the HTTP bootstrap and the WebSocket upgrade (Caddy auto-detects it), but if it turns out to be flaky in practice the documented fallback is to serve webtop on a **second TS Serve HTTPS port on the same hostname** (e.g. `https://devvm.<tailnet>.ts.net:8443/`), which still satisfies the "one hostname" requirement.
+
+### Landing page
+
+`portal-index.html.j2`: a small self-contained HTML file with a dark theme, responsive card grid, and links to every service in the current config. No JS, no external CSS. Rendered by the `containers` role alongside the compose template so it stays in lockstep with declared config. Adding an agent to `claude_agents` in group_vars auto-adds a card; flipping `webtop_enabled` to `true` auto-adds the desktop card.
+
+### Artifacts changed for R5
+
+- `ansible/roles/containers/templates/docker-compose.yml.j2` — rewritten. One `ts-devvm` sidecar, portal container, all other services on own netns (removed `network_mode: "service:ts-code"` etc.)
+- `ansible/roles/containers/templates/Caddyfile.j2` — new, portal routing
+- `ansible/roles/containers/templates/portal-index.html.j2` — new, landing page
+- `ansible/roles/containers/templates/ts-serve.json.j2` — new, TS Serve config
+- `ansible/roles/containers/tasks/main.yml` — renders the new templates, creates `portal/` and `ts-devvm-config/` subdirs in the compose dir
+- `ansible/group_vars/all.yml` — added `devvm_tailnet_hostname: devvm`, `portal_image: caddy:2`; replaced the three TS auth key vars with a single `ts_authkey_devvm`; removed `watchtower_image`/`watchtower_schedule`; added `compose_update_schedule`
+- `ansible/roles/updates/tasks/main.yml` — added `devvm-compose-update.service/.timer` and `devvm-ansible-pull.service/.timer` for the watchtower replacement path
+- `README.md` — new "Why a single tailnet hostname + portal" and "Container image update strategies" sections; updated architecture diagram; updated feature-mapping table; updated file listing
+
+### R5 open items
+
+- Verify the code-server subpath story on a real instance. The `X-Forwarded-Prefix` support has been in code-server for years but a few of its generated asset paths were historically flaky under `handle_path`. If it breaks, the fallback is to give code-server its own TS Serve port on the same hostname.
+- Confirm that webtop's KasmVNC layer works under `handle_path` in practice. As noted above the documented fallback is a second TS Serve port.
+- Decide if the portal should get basic-auth as a defense-in-depth measure on top of tailnet ACLs. Probably not — tailnet access is already gated, and adding auth would fight the code-server no-auth flow.
+
+### R6: non-watchtower update research (deeper dive)
+
+R6 extends R4 with a fuller survey. The trade space has three axes:
+
+1. **Who triggers the update?** (a watcher daemon, a systemd timer, a human via PR, a human via button)
+2. **What's the unit being updated?** (image digest, image tag, compose file, golden image)
+3. **Is there a test gate between detection and apply?** (none, smoke tests, full CI, human approval)
+
+Mapping the alternatives to the axes:
+
+| Tool | Trigger | Unit | Test gate |
+|---|---|---|---|
+| watchtower (dead) | daemon poll | image digest | none |
+| nickfedor/watchtower | daemon poll | image digest | none (optional lifecycle hooks) |
+| Diun | daemon poll | image digest | none (notifies only) |
+| What's Up Docker (WUD) | daemon poll + dashboard | image digest | manual button, label rules |
+| Tugtainer | daemon poll | image digest | healthcheck rollback |
+| dockcheck | cron + bash | image digest | none |
+| systemd timer + `docker compose pull` | timer | compose file + upstream images | none |
+| ansible-pull timer (**chosen primary**) | timer | full config repo | any CI in the config repo |
+| Renovate on the config repo (**chosen optional**) | PR bot | pinned tags in group_vars | CI + human PR review |
+| Packer rebake | manual or timer | golden image | Packer provisioner + CI |
+
+The design's chosen path is:
+
+- **Primary:** `devvm-ansible-pull.timer` + `devvm-compose-update.timer`. Zero new daemons, one source of truth (the git repo), re-uses the provisioning path.
+- **Opt-in for PR-gated version pinning:** Renovate on the config repo targeting image pin variables in group_vars. CI in the repo can build the compose stack in a throwaway VM and run smoke tests before the PR is eligible to merge.
+- **Opt-in for notifications:** add `crazy-max/diun` to the compose stack for low-cost "new image tag available" alerts via webhook.
+
+This is documented in the new "Container image update strategies" section of the README.
+
+### R6 open items
+
+- Actually wire up Renovate on a real config repo and show the resulting PRs in a follow-up experiment.
+- Write smoke tests that can run inside a compose-stack preview.
+- Measure `docker compose build --pull` cold time for the code-server image — expected to be very short since the image is now almost a no-op (just a `usermod`).
+

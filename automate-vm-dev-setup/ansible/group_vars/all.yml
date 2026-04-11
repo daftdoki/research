@@ -87,7 +87,11 @@ apt_dev_packages:
   - man-db
 
 # ---- Claude Code -----------------------------------------------------------
-claude_code_version: latest
+# Claude Code ships a standalone Bun-compiled binary via the official
+# installer (https://claude.ai/install.sh). It auto-updates in the background
+# on the host, so no version pin is needed here. Agent containers bake in
+# whatever version was current at image build time.
+#
 # Injected at runtime via -e
 # anthropic_api_key: "sk-ant-..."
 
@@ -112,10 +116,26 @@ claude_agents:
 # Put day-to-day repos and hand-off scratch files here.
 shared_workdir: "/home/{{ devvm_user }}/work"
 
-# ---- Containers (code-server, filebrowser, watchtower, claude-agents) -----
+# ---- Containers (portal, code-server, filebrowser, claude-agents) ---------
 # Paths rendered into docker-compose.yml by the containers role.
 compose_dir: /opt/devvm/compose
 compose_data_dir: /srv/devvm
+
+# ---- Single-hostname portal -----------------------------------------------
+# Every service is accessible via ONE tailnet hostname (devvm_tailnet_hostname)
+# through a Caddy reverse proxy (the "portal"). The Caddy container shares the
+# tailscale sidecar's network namespace, so Tailscale sees exactly one node,
+# one hostname, one HTTPS cert.
+#
+# The portal landing page at `/` gives clickable access to each service; the
+# services themselves are reverse-proxied at predictable subpaths.
+devvm_tailnet_hostname: devvm
+portal_image: caddy:2
+
+# Injected at runtime via -e
+# ts_authkey_devvm: "tskey-..." (or from an OAuth-issued ephemeral key)
+# Injected at runtime via -e
+# claude_terminal_password: "..."
 
 code_server_version: latest   # base tag for codercom/code-server
 code_server_extensions:
@@ -157,5 +177,17 @@ webtop_apt_packages:
   - meld
   - gnome-terminal
 
-watchtower_image: containrrr/watchtower:latest
-watchtower_schedule: "0 0 4 * * *"   # 04:00 nightly
+# ---- Container image update automation ------------------------------------
+# containrrr/watchtower was archived in December 2025, so we don't use it.
+# Instead: the `updates` role installs a systemd timer that runs the full
+# reconciliation path weekly -
+#
+#     ansible-pull -> re-render compose -> docker compose build --pull
+#                  -> docker compose pull -> docker compose up -d
+#
+# That single path keeps both locally-built images (code-server, agent,
+# portal) and upstream images (tailscale, filebrowser, webtop, caddy) in
+# sync with whatever is declared in this file. No separate image watcher
+# daemon is needed. See README "Container image update strategies" for a
+# survey of the alternatives (Diun, What's Up Docker, Renovate, etc.).
+compose_update_schedule: "Sun 04:30"   # OnCalendar expression
