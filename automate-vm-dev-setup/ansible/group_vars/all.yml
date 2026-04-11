@@ -102,12 +102,22 @@ claude_agents:
   - name: agent-3
     workspace: /home/me/agents/agent-3
 
+# ---- Common working directory ---------------------------------------------
+# This path is bind-mounted into code-server and into every Claude agent
+# container at the same absolute path. Anything produced here is visible:
+#   - over plain SSH (it's just a directory in the user's home)
+#   - in the VS Code integrated terminal and explorer (same path inside
+#     the code-server container thanks to the home-dir mount)
+#   - inside each Claude agent sandbox (explicit bind mount)
+# Put day-to-day repos and hand-off scratch files here.
+shared_workdir: "/home/{{ devvm_user }}/work"
+
 # ---- Containers (code-server, filebrowser, watchtower, claude-agents) -----
 # Paths rendered into docker-compose.yml by the containers role.
 compose_dir: /opt/devvm/compose
 compose_data_dir: /srv/devvm
 
-code_server_image: codercom/code-server:latest
+code_server_version: latest   # base tag for codercom/code-server
 code_server_extensions:
   - ms-python.python
   - rust-lang.rust-analyzer

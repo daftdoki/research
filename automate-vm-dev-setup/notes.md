@@ -281,3 +281,71 @@ Final artifacts in this folder:
 
 7. **Project-level devcontainers.** VS Code's remote dev containers still work inside the VM; recommend preserving `.devcontainer` support for per-project isolation on top of the VM-level environment.
 
+
+---
+
+## Follow-up: Claude Code in all three surfaces + shared working dir
+
+User asked for `claude` to be reachable from:
+
+1. Normal SSH shell
+2. Inside VS Code
+3. Optionally inside a constrained environment
+
+...and for all three environments to share a common working directory.
+
+### Surface analysis
+
+| Surface | How it reaches `claude` today | Gap |
+|---|---|---|
+| SSH shell | `dev_tools` role does `npm install -g @anthropic-ai/claude-code` on the host via mise-managed Node | none |
+| VS Code integrated terminal | code-server runs in a container that does NOT have Node or claude-code installed | needed a custom image |
+| Sandboxed agent | agent image already installs claude-code | needed to also mount the shared work dir |
+
+### Design decisions
+
+- **Custom code-server image** (`docker/code-server-image/Dockerfile`) extending `codercom/code-server:latest` with:
+  - `nodejs` from NodeSource (matches host mise Node version closely)
+  - `npm i -g @anthropic-ai/claude-code`
+  - `mise` installed so `python`, `uv`, `node`, etc. are on PATH inside the integrated terminal, giving it the same tool chain as the SSH shell without duplicating mise state.
+  - Activated in `/home/coder/.bashrc` so new integrated terminals pick it up automatically.
+
+- **Why not install-on-startup?** Would slow every restart and isn't idempotent-friendly across upgrades. Baking it into an image is deterministic and fast.
+
+- **Image updates:** Watchtower pulls base image updates, but a locally-built image won't be replaced by watchtower alone. The weekly `ansible-pull` is expected to rebuild these local images. For extra safety, could add a systemd timer that runs `docker compose build --pull` weekly — noted in open questions.
+
+### Shared working directory choice: `/home/me/work`
+
+Simplest path that satisfies every constraint:
+
+- Under `$HOME`, so it is automatically visible:
+  - Over SSH (it's just a directory)
+  - In code-server (already bind-mounts `/home/me:/home/me`)
+  - In filebrowser (already bind-mounts `/home/me:/srv`)
+- Bind-mounted at the SAME absolute path into each agent container so paths are invariant across environments — you can write `/home/me/work/foo.py` and it's the same file whether you write it from SSH, from the VS Code explorer, or from inside an agent.
+- Created by the `user` Ansible role so it's owned by the devvm user with mode 0755.
+
+### Agent container permission fix
+
+Agents originally used `uid 1100 agent`. With the new shared bind-mount that's owned by host uid 1000, the agent could not write to it. Changed the agent Dockerfile to create the `agent` user at uid 1000 (and remove the base `node` user that owned that uid). Now host/container UIDs align and no chown dance is needed.
+
+### What changed
+
+Files added:
+- `docker/code-server-image/Dockerfile`
+
+Files modified:
+- `ansible/group_vars/all.yml` — added `shared_workdir`, renamed `code_server_image` to `code_server_version`
+- `ansible/roles/user/tasks/main.yml` — creates `{{ shared_workdir }}`
+- `ansible/roles/containers/templates/docker-compose.yml.j2`:
+  - code-server now built from `../code-server-image` (tagged `devvm/code-server:local`)
+  - code-server bind-mounts the shared workdir and opens into it
+  - each Claude agent bind-mounts the shared workdir at the same absolute path
+  - agent working_dir changed to the shared workdir; ttyd command cds into it before starting claude
+- `docker/agent-image/Dockerfile` — agent user uid changed to 1000 to match host for bind-mount permissions
+
+### Open follow-ups
+
+- Consider adding a systemd timer that runs `ansible-pull` weekly — this would re-pull the repo, rebuild local images, and restart the stack without manual intervention. Right now only `mise-upgrade.timer` runs; everything else assumes a person re-runs ansible-pull periodically.
+- Consider running claude-code itself from a single source of truth (e.g. a global `/opt/claude/bin` directory shared across all contexts via bind-mount) to avoid three separate installs. The three-install approach is simpler and was chosen for this iteration.
+- Sharing the Claude Code session/auth state (`~/.claude/`) between the SSH shell and the VS Code integrated terminal is automatic because both see `/home/me`. Agent containers are deliberately kept separate — each agent maintains its own auth state inside its isolated workspace.

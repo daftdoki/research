@@ -31,6 +31,9 @@
     group: "{{ devvm_user }}"
     mode: "0755"
   loop:
-    - "/home/{{ devvm_user }}/agents"
-    - "/home/{{ devvm_user }}/code"
+    - "/home/{{ devvm_user }}/agents"      # one subdir per sandboxed agent
+    - "/home/{{ devvm_user }}/code"        # general scratch
     - "/home/{{ devvm_user }}/.config"
+    - "{{ shared_workdir }}"               # common working dir visible in
+                                           # SSH, code-server, and every
+                                           # agent container

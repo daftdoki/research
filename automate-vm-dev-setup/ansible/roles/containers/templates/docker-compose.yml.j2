@@ -20,15 +20,27 @@ x-tailscale-sidecar: &tailscale-sidecar
 services:
 
   # -------- VS Code in the browser ----------------------------------------
+  # Built from ../code-server-image, which extends codercom/code-server with
+  # Node.js + Claude Code + mise so `claude`, `python`, `uv`, `node`, etc.
+  # are all on PATH in the integrated terminal. {{ shared_workdir }} is
+  # bind-mounted at the same absolute path as on the host so the working
+  # directory is identical to what you see over SSH.
   code-server:
-    image: {{ code_server_image }}
+    build:
+      context: ../code-server-image
+      dockerfile: Dockerfile
+      args:
+        CODE_SERVER_VERSION: {{ code_server_version | default('latest') }}
+    image: devvm/code-server:local
     restart: unless-stopped
     user: "{{ devvm_user_uid }}:{{ devvm_user_uid }}"
     environment:
       DOCKER_USER: "{{ devvm_user }}"
       PASSWORD_FILE: /run/secrets/code_password
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     volumes:
       - /home/{{ devvm_user }}:/home/{{ devvm_user }}
+      - {{ shared_workdir }}:{{ shared_workdir }}
       - /var/run/docker.sock:/var/run/docker.sock
     command: >
       --auth=none
@@ -36,6 +48,7 @@ services:
       {% for ext in code_server_extensions %}
       --install-extension {{ ext }}
       {% endfor %}
+      {{ shared_workdir }}
     network_mode: "service:ts-code"
 
   ts-code:
@@ -83,6 +96,7 @@ services:
     build:
       context: ../agent-image
       dockerfile: Dockerfile
+    image: devvm/claude-agent:local
     restart: unless-stopped
     hostname: {{ agent.name }}
     cap_add: [NET_ADMIN]       # needed so init-firewall.sh can write ipset rules
@@ -90,13 +104,19 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       AGENT_NAME: {{ agent.name }}
     volumes:
+      # Per-agent scratch workspace (isolated).
       - {{ agent.workspace }}:/workspace
-    working_dir: /workspace
+      # Common working directory at the same absolute path as the host so
+      # anything produced here is immediately visible over SSH and inside
+      # code-server. This is the hand-off point between the constrained
+      # environment and the rest of the VM.
+      - {{ shared_workdir }}:{{ shared_workdir }}
+    working_dir: {{ shared_workdir }}
     # ttyd gives each agent a browser terminal on its own internal port;
     # a single reverse proxy in front (see ts-agents) exposes them all.
     command: >
       ttyd -p 7681 -W -c user:${CLAUDE_TERMINAL_PASSWORD:-changeme}
-           bash -lc "claude --dangerously-skip-permissions"
+           bash -lc "cd {{ shared_workdir }} && claude --dangerously-skip-permissions"
 {% endfor %}
 
   # -------- Watchtower: keep all of the above up to date ------------------

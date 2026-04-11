@@ -28,8 +28,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Claude Code
 RUN npm install -g @anthropic-ai/claude-code
 
-# Unprivileged agent user, with NOPASSWD sudo for the firewall boot step only.
-RUN useradd -m -s /bin/bash -u 1100 agent \
+# Unprivileged agent user. uid/gid 1000 matches the host-side devvm user
+# so bind-mounted directories (the per-agent /workspace and the shared
+# working directory) are readable and writable without chown dance.
+# NOPASSWD sudo is scoped to the firewall boot step only.
+RUN userdel -r node 2>/dev/null || true \
+ && useradd -m -s /bin/bash -u 1000 agent \
  && echo 'agent ALL=(root) NOPASSWD: /usr/local/sbin/init-firewall.sh' > /etc/sudoers.d/agent-firewall
 
 # Firewall script (verbatim from anthropics/claude-code/.devcontainer/init-firewall.sh

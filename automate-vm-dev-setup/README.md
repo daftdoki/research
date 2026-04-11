@@ -7,7 +7,7 @@
 
 ## Question / Goal
 
-How can I automate the configuration of a development VM in a hypervisor-agnostic way, so that the same automation produces an identical, ready-to-use workstation whether the VM is running on a macOS laptop, a Proxmox cluster, or AWS EC2? The setup must join my tailnet, create my user with SSH keys, install my dotfiles and dev tools, run browser-accessible VS Code, expose a web file manager, install Claude Code, allow running multiple sandboxed `claude --dangerously-skip-permissions` agents in parallel, auto-update itself, and be quick to (re)provision. ([original prompt](#original-prompt))
+How can I automate the configuration of a development VM in a hypervisor-agnostic way, so that the same automation produces an identical, ready-to-use workstation whether the VM is running on a macOS laptop, a Proxmox cluster, or AWS EC2? The setup must join my tailnet, create my user with SSH keys, install my dotfiles and dev tools, run browser-accessible VS Code, expose a web file manager, install Claude Code, allow running multiple sandboxed `claude --dangerously-skip-permissions` agents in parallel, auto-update itself, and be quick to (re)provision. Claude Code should be reachable from the SSH shell, from inside VS Code, and optionally inside a constrained sandbox — all three environments sharing one common working directory. ([original prompt](#original-prompt))
 
 ## Answer / Summary
 
@@ -28,6 +28,11 @@ How can I automate the configuration of a development VM in a hypervisor-agnosti
 - **code-server** rather than openvscode-server — it can pre-install extensions non-interactively and can point `$EXTENSIONS_GALLERY` at a private marketplace.
 - **Claude agent containers built on Anthropic's reference devcontainer pattern** (see [anthropics/claude-code/.devcontainer](https://github.com/anthropics/claude-code/tree/main/.devcontainer)) — each agent runs with a default-deny outbound firewall allowing only `api.anthropic.com`, `registry.npmjs.org`, `github.com`, and a small allowlist, which is exactly what makes `--dangerously-skip-permissions` safe to run unattended.
 - **Packer** wraps the same Ansible playbook to produce a **golden image** per target, shrinking cold-boot-to-ready time from minutes to seconds — the same playbook that provisions a fresh VM also bakes the AMI/qcow2/vmdk, so there is only one source of truth.
+- **Claude Code is reachable from three different surfaces that all share one common working directory** (`/home/me/work`):
+  - **Plain SSH shell** — `@anthropic-ai/claude-code` is installed as an npm global by the `dev_tools` Ansible role on the host, using Node.js managed by mise, so `claude` is on PATH in the user's normal login shell.
+  - **VS Code integrated terminal** — a custom `docker/code-server-image/` Dockerfile extends `codercom/code-server` with Node.js, the Claude Code CLI, and mise, so `claude`, `python`, `uv`, `node`, etc. resolve identically inside the browser VS Code. Code-server opens directly into `/home/me/work`.
+  - **Sandboxed agent containers** — the per-agent image already has Claude Code baked in; each container runs under an `init-firewall.sh` network allowlist so `claude --dangerously-skip-permissions` is safe even running many in parallel.
+  - **Shared working directory** — `/home/me/work` is bind-mounted at the same absolute path into code-server and every agent container, so files written by an agent are instantly visible in the VS Code explorer and over SSH, and vice versa. It's the hand-off point between the constrained and unconstrained environments.
 
 For additional and more detailed information see the [research notes](notes.md).
 
@@ -77,17 +82,36 @@ For additional and more detailed information see the [research notes](notes.md).
              │
              ▼
    docker compose stack running on the VM
-             ├─ code-server           browser VS Code, extensions pre-installed
+             ├─ code-server           custom image: codercom/code-server + Node
+             │                        + @anthropic-ai/claude-code + mise
+             │                        mounts /home/me AND /home/me/work
              ├─ ts-code  (sidecar)    exposes code-server as https://devvm-code.<tailnet>.ts.net
              ├─ filebrowser           home-dir web UI
              ├─ ts-files (sidecar)    exposes filebrowser as https://devvm-files.<tailnet>.ts.net
              ├─ agent-0..agent-N      one sandboxed Claude Code container each
              │                          - ipset default-deny firewall
-             │                          - only /workspace is writable from host
+             │                          - /workspace = per-agent scratch
+             │                          - /home/me/work = shared hand-off dir
              │                          - `claude --dangerously-skip-permissions`
              │                            wrapped in ttyd for a browser terminal
              └─ watchtower            nightly pull+recreate of every image
+
+   Shared working directory
+             /home/me/work on the host
+                  ├─ visible natively over SSH
+                  ├─ bind-mounted at the same absolute path into code-server
+                  └─ bind-mounted at the same absolute path into every agent
 ```
+
+## Claude Code surfaces
+
+| Surface | How `claude` gets there | Working directory | Permission mode |
+|---|---|---|---|
+| **SSH shell** (tailnet SSH or direct ssh) | `npm install -g @anthropic-ai/claude-code` via mise-managed Node, run by the `dev_tools` Ansible role on the host | `/home/me/work` (the shared dir, same path everywhere) | Normal prompt-based permission gating — you're on the host, so permission prompts matter. |
+| **VS Code integrated terminal** (browser, via tailnet) | Baked into the custom `docker/code-server-image/` which extends `codercom/code-server` with Node.js, the Claude Code CLI, and mise. The home dir bind-mount also makes the host's mise state and dotfiles visible. | Code-server opens into `/home/me/work` by default; explorer and integrated terminal see the same files as SSH | Same prompt-based mode as SSH — the code-server container is NOT sandboxed, it's effectively the user's normal environment on a browser face. |
+| **Sandboxed agent** (browser terminal per agent) | Baked into the `docker/agent-image/` (based on Anthropic's reference devcontainer). Each compose service is a separate container, one per agent. | Per-agent `/workspace` for isolated scratch, plus the shared `/home/me/work` at the same absolute path so finished work can be handed off. | `claude --dangerously-skip-permissions` runs unattended behind an ipset default-deny firewall (`init-firewall.sh`) that only allows `api.anthropic.com`, `registry.npmjs.org`, `github.com`, etc. |
+
+The common path means you can launch an agent to generate code in the constrained environment, then immediately `cd ~/work` from the SSH shell (or open the folder in code-server) to review and run it without any file copying.
 
 ## Results — Feature → Mechanism mapping
 
@@ -97,9 +121,12 @@ For additional and more detailed information see the [research notes](notes.md).
 | Create user, sudo, SSH keys | `user` Ansible role, `devvm_user_ssh_keys` in group_vars |
 | Dotfiles | chezmoi installed by `dev_tools` role, `chezmoi init --apply` of your dotfiles repo |
 | Docker + compose | `docker` role (e.g. `geerlingguy.docker`) + `community.docker.docker_compose_v2` |
-| Browser VS Code w/ extensions | `code-server` container, `--install-extension` per item in `code_server_extensions` list |
+| Browser VS Code w/ extensions | Custom `docker/code-server-image/` extending `codercom/code-server` with Node + Claude Code + mise, plus `--install-extension` per item in `code_server_extensions` list |
 | VS Code via tailnet | `ts-code` sidecar container running `tailscale/tailscale` with `TS_SERVE_CONFIG`, fronted by MagicDNS HTTPS |
-| Claude Code | npm global install inside `dev_tools` role, plus per-agent install in the agent Dockerfile |
+| Claude Code in SSH shell | npm global install inside `dev_tools` role, using mise-managed Node |
+| Claude Code in VS Code integrated terminal | Baked into the custom code-server image so `which claude` works inside the browser terminal |
+| Claude Code in sandboxed agents | npm global install in the agent Dockerfile plus `--dangerously-skip-permissions` wrapped in an ipset network allowlist |
+| Common working directory across all three surfaces | `shared_workdir` (default `/home/me/work`) bind-mounted at the same absolute path into code-server and every agent container; natively visible over SSH |
 | Web file manager | `filebrowser/filebrowser` container, `/home/$USER` bind mount, `ts-files` sidecar |
 | Common dev tools (git, python, uv, pyenv replacement, nvim, ...) | mise manages everything via `mise_global_tools` list in group_vars; apt handles the few it can't |
 | Adding a new tool is one line | YAML edit to `mise_global_tools` (or `apt_dev_packages` for system pkgs), re-run `ansible-pull` |
@@ -176,10 +203,16 @@ automate-vm-dev-setup/
 │       ├── containers/templates/docker-compose.yml.j2 # the compose stack
 │       └── updates/tasks/main.yml  # mise-upgrade.timer
 └── docker/
-    └── agent-image/
-        ├── Dockerfile              # sandboxed Claude Code agent base image
-        ├── entrypoint.sh           # runs init-firewall then execs command
-        └── init-firewall.sh        # ipset default-deny with domain allowlist
+    ├── agent-image/
+    │   ├── Dockerfile              # sandboxed Claude Code agent base image
+    │   │                           # (uid 1000 agent user, matches host)
+    │   ├── entrypoint.sh           # runs init-firewall then execs command
+    │   └── init-firewall.sh        # ipset default-deny with domain allowlist
+    └── code-server-image/
+        └── Dockerfile              # extends codercom/code-server with
+                                    # Node.js, Claude Code CLI, and mise,
+                                    # so `claude` works in the VS Code
+                                    # integrated terminal
 ```
 
 The artifacts are a concrete sketch, not a one-click repo — they illustrate the shape of the solution and the specific tool choices. To use them in practice, drop them into a private git repo, replace the placeholder SSH keys / OAuth client IDs / dotfiles URL, and point `bootstrap.sh` at the repo.
