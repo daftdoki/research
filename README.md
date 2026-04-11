@@ -157,7 +157,16 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 4 research projects
+## 5 research projects
+
+### [Bambu Lab H2D Camera: External Access Options](https://github.com/daftdoki/research/tree/main/bambu-h2d-camera-access#readme) (2026-04-11 19:51)
+
+The Bambu Lab H2D's built-in chamber camera can be accessed externally via a LAN-only RTSPS (RTSP-over-TLS) stream, allowing integration with various third-party applications such as Home Assistant (via the [ha-bambulab integration](https://github.com/greghesp/ha-bambulab)), VLC, OctoEverywhere, Blue Iris, and others. To enable this, "LAN Only Liveview" must be toggled on in the printer's settings, and the stream is accessed at `rtsps://bblp:<ACCESS_CODE>@<PRINTER_IP>:322/streaming/live/1` using your printer's LAN Access Code. The toolhead calibration camera remains inaccessible outside Bambu's ecosystem, and no ONVIF or HTTP snapshot endpoints are provided. Sub-second latency for Home Assistant is achievable with tools like [go2rtc](https://github.com/AlexxIT/go2rtc).
+
+**Key Findings:**
+- Chamber camera stream is available via secure LAN-only RTSPS, compatible with many tools but not cloud-direct.
+- Only the chamber camera is exposed; nozzle (toolhead) camera is not externally accessible.
+- Adding to Home Assistant is easiest with the ha-bambulab integration, with go2rtc/WebRTC Card recommended for lowest latency.
 
 ### [Roon Agent Connectivity: MCP and Other Options](https://github.com/daftdoki/research/tree/main/roon-agent-connectivity#readme) (2026-04-11 03:58)
 
