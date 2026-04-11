@@ -1,0 +1,37 @@
+---
+# Tools that don't fit under mise cleanly (usually because they're already
+# system packages, or have their own first-party installer).
+
+- name: Install chezmoi for dotfiles
+  ansible.builtin.shell: |
+    sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
+  args:
+    creates: /usr/local/bin/chezmoi
+
+- name: Apply dotfiles as the primary user
+  become_user: "{{ devvm_user }}"
+  ansible.builtin.command:
+    cmd: "chezmoi init --apply {{ dotfiles_repo }} --branch {{ dotfiles_branch }}"
+  args:
+    creates: "/home/{{ devvm_user }}/.local/share/chezmoi"
+
+# Claude Code ships an official native installer (Bun-compiled single binary,
+# no Node.js / no npm). It self-updates in the background, so we don't need
+# to pin or upgrade it ourselves.
+#   https://claude.ai/install.sh  ->  ~/.local/bin/claude
+- name: Install Claude Code via the official native installer
+  become_user: "{{ devvm_user }}"
+  ansible.builtin.shell: |
+    set -e
+    curl -fsSL https://claude.ai/install.sh | bash
+  args:
+    creates: "/home/{{ devvm_user }}/.local/bin/claude"
+
+- name: Drop the user's Anthropic API key into their environment
+  become_user: "{{ devvm_user }}"
+  ansible.builtin.copy:
+    dest: "/home/{{ devvm_user }}/.config/claude/.env"
+    mode: "0600"
+    content: |
+      ANTHROPIC_API_KEY={{ anthropic_api_key }}
+  when: anthropic_api_key | length > 0

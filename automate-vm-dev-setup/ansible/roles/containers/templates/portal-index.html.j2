@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ devvm_tailnet_hostname }} | dev portal</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f1115;
+      --card: #1a1d24;
+      --ink: #e6e8ef;
+      --muted: #9aa3b2;
+      --accent: #7cc4ff;
+      --border: #2a2f3a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.5 -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1rem;
+    }
+    header {
+      width: 100%;
+      max-width: 680px;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      margin: 0 0 .25rem 0;
+      font-size: 1.8rem;
+      letter-spacing: -.01em;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .95rem;
+    }
+    .grid {
+      width: 100%;
+      max-width: 680px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: .75rem;
+    }
+    a.card {
+      display: block;
+      padding: 1rem 1.1rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--ink);
+      text-decoration: none;
+      transition: border-color .15s ease, transform .15s ease;
+    }
+    a.card:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+    a.card h2 {
+      margin: 0 0 .2rem 0;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+    a.card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    .section-label {
+      grid-column: 1 / -1;
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin: 1rem 0 .25rem 0;
+    }
+    footer {
+      margin-top: 2.5rem;
+      color: var(--muted);
+      font-size: .75rem;
+      text-align: center;
+      max-width: 680px;
+    }
+    code {
+      background: var(--card);
+      padding: .1em .4em;
+      border-radius: 4px;
+      font-size: .85em;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>{{ devvm_tailnet_hostname }}</h1>
+    <p>Dev VM portal &middot; single tailnet hostname for every service on this machine.</p>
+  </header>
+
+  <nav class="grid">
+
+    <div class="section-label">Editors &amp; shells</div>
+
+    <a class="card" href="/code/">
+      <h2>VS Code</h2>
+      <p>code-server running in a browser-native VS Code, opened into <code>{{ shared_workdir }}</code>.</p>
+    </a>
+
+{% if webtop_enabled | default(false) %}
+    <a class="card" href="/desktop/">
+      <h2>Desktop</h2>
+      <p>Full Linux desktop (XFCE) via KasmVNC/Selkies, sharing the same $HOME as the SSH shell.</p>
+    </a>
+{% endif %}
+
+    <div class="section-label">Files</div>
+
+    <a class="card" href="/files/">
+      <h2>File manager</h2>
+      <p>Web-based file browser for <code>/home/{{ devvm_user }}</code>.</p>
+    </a>
+
+    <div class="section-label">Sandboxed agents</div>
+
+{% for agent in claude_agents %}
+    <a class="card" href="/agents/{{ loop.index0 }}/">
+      <h2>{{ agent.name }}</h2>
+      <p>Browser terminal &rarr; <code>claude --dangerously-skip-permissions</code> in an ipset-firewalled sandbox. Scratch: <code>{{ agent.workspace }}</code>.</p>
+    </a>
+{% endfor %}
+
+  </nav>
+
+  <footer>
+    This portal is served by a Caddy reverse proxy sharing the network namespace of a single Tailscale sidecar.
+    All services are reachable under <code>https://{{ devvm_tailnet_hostname }}.&lt;your-tailnet&gt;.ts.net/</code>.
+    Every surface shares the host's <code>/home/{{ devvm_user }}</code>, so programs, tools, and files cannot drift out of sync.
+  </footer>
+</body>
+</html>

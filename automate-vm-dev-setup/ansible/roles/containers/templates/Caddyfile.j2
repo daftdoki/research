@@ -1,0 +1,71 @@
+# Rendered by Ansible. Single-hostname portal.
+# Caddy listens on 127.0.0.1:8000 inside the ts-devvm network namespace;
+# Tailscale Serve forwards https://{{ devvm_tailnet_hostname }}.<tailnet>.ts.net
+# to that port. HTTPS termination happens in the tailscale sidecar, so Caddy
+# can stay plain HTTP here.
+
+{
+    auto_https off
+    admin off
+}
+
+:8000 {
+    # ---- landing page ---------------------------------------------------
+    handle / {
+        root * /usr/share/caddy
+        try_files {path} /index.html
+        file_server
+    }
+    handle /static/* {
+        root * /usr/share/caddy
+        file_server
+    }
+
+    # ---- code-server at /code ------------------------------------------
+    # code-server honors X-Forwarded-Prefix so the generated HTML/JS
+    # references line up with the public path.
+    handle_path /code/* {
+        reverse_proxy code-server:8080 {
+            header_up X-Forwarded-Prefix /code
+            header_up X-Forwarded-Proto https
+        }
+    }
+
+    # ---- filebrowser at /files -----------------------------------------
+    # filebrowser was started with `--baseurl /files`, so the backend
+    # already expects to be served under that prefix. We keep the prefix
+    # when proxying (plain handle, not handle_path).
+    handle /files* {
+        reverse_proxy filebrowser:80
+    }
+
+{% if webtop_enabled | default(false) %}
+    # ---- optional webtop desktop at /desktop ---------------------------
+    # KasmVNC / Selkies expect to be served from `/`, so the portal
+    # rewrites the incoming path before proxying. This works for the HTTP
+    # bootstrap; the websocket upgrade is auto-detected by Caddy's
+    # reverse_proxy. If KasmVNC adds a proper BASE_URL option upstream,
+    # switch this to a plain handle_path block.
+    handle_path /desktop/* {
+        reverse_proxy webtop:3000 {
+            header_up X-Forwarded-Prefix /desktop
+            header_up X-Forwarded-Proto https
+        }
+    }
+{% endif %}
+
+    # ---- per-agent browser terminals at /agents/N/ ---------------------
+    # Each ttyd is started with `-b /agents/N` so it generates its assets
+    # under the correct path prefix natively. We keep the prefix when
+    # proxying (plain handle, not handle_path).
+{% for agent in claude_agents %}
+    handle /agents/{{ loop.index0 }}* {
+        reverse_proxy {{ agent.name }}:7681
+    }
+{% endfor %}
+
+    # ---- fallthrough ---------------------------------------------------
+    handle {
+        respond "devvm portal: unknown route {path}" 404
+    }
+}

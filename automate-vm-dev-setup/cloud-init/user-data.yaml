@@ -1,0 +1,68 @@
+#cloud-config
+# Portable cloud-init user-data.
+# Works on: Proxmox Cloud-Init templates, AWS EC2 user-data, macOS Multipass
+# (multipass launch --cloud-init user-data.yaml), and any NoCloud datasource.
+#
+# This file is deliberately minimal. It only needs to:
+#   1. set hostname / timezone
+#   2. create the primary user and install authorized SSH keys so you can
+#      reach the VM
+#   3. install the bare minimum (git, curl, ca-certs, python)
+#   4. fetch and run the layer-1 bootstrap script, which itself kicks off
+#      ansible-pull for the real configuration.
+#
+# Everything else (tailscale, docker, containers, tools) is the Ansible
+# playbook's job, not cloud-init's. Keeping cloud-init small is what makes it
+# portable across platforms.
+
+hostname: devvm
+preserve_hostname: false
+timezone: Etc/UTC
+
+# Primary interactive user. Password is disabled; SSH key only.
+users:
+  - name: me
+    gecos: Me
+    groups: [sudo]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAA...REPLACE_WITH_YOUR_KEY...
+      - ssh-ed25519 AAAA...AND_ANY_OTHERS...
+
+# Don't let cloud-init manage /etc/hosts after the first boot; Tailscale
+# MagicDNS will provide authoritative naming once layer 1 runs.
+manage_etc_hosts: true
+
+package_update: true
+package_upgrade: false   # let unattended-upgrades handle updates on its own schedule
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - python3
+  - python3-venv
+  - pipx
+
+write_files:
+  # Pass config to the bootstrap script without baking it into the script.
+  # Secrets (TS_AUTHKEY, etc.) should be delivered another way - see notes.
+  - path: /etc/devvm/bootstrap.env
+    permissions: "0600"
+    owner: root:root
+    content: |
+      # Git repo containing the Ansible playbook for this VM
+      CONFIG_REPO=https://github.com/me/devvm-config.git
+      CONFIG_BRANCH=main
+      # Which playbook entry-point to run
+      PLAYBOOK=site.yml
+      # Tags to restrict the first run (optional)
+      ANSIBLE_TAGS=
+
+runcmd:
+  # Fetch and execute the layer-1 bootstrap. The script itself lives in the
+  # same git repo as the playbook so there is exactly one source of truth.
+  - [ bash, -c, "curl -fsSL https://raw.githubusercontent.com/me/devvm-config/main/bootstrap.sh | bash" ]
+
+final_message: "devvm layer-0 complete in $UPTIME seconds. Ansible layer taking over."

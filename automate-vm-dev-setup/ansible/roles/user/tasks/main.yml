@@ -1,0 +1,39 @@
+---
+- name: Ensure primary user exists
+  ansible.builtin.user:
+    name: "{{ devvm_user }}"
+    uid: "{{ devvm_user_uid }}"
+    shell: "{{ devvm_user_shell }}"
+    groups: [sudo]
+    append: true
+    create_home: true
+    state: present
+
+- name: Passwordless sudo for primary user
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/10-{{ devvm_user }}"
+    mode: "0440"
+    content: "{{ devvm_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    validate: "visudo -cf %s"
+
+- name: Install authorized SSH keys
+  ansible.posix.authorized_key:
+    user: "{{ devvm_user }}"
+    key: "{{ item }}"
+    state: present
+  loop: "{{ devvm_user_ssh_keys }}"
+
+- name: Create per-user directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ devvm_user }}"
+    group: "{{ devvm_user }}"
+    mode: "0755"
+  loop:
+    - "/home/{{ devvm_user }}/agents"      # one subdir per sandboxed agent
+    - "/home/{{ devvm_user }}/code"        # general scratch
+    - "/home/{{ devvm_user }}/.config"
+    - "{{ shared_workdir }}"               # common working dir visible in
+                                           # SSH, code-server, and every
+                                           # agent container

@@ -1,0 +1,80 @@
+---
+# Renders a docker-compose stack for the long-running services on the VM
+# (portal, VS Code, file browser, desktop, Claude agent pool) and brings it
+# up. Everything is exposed under a single tailnet hostname through a Caddy
+# reverse proxy that shares a Tailscale sidecar's network namespace.
+
+- name: Ensure compose directory exists
+  ansible.builtin.file:
+    path: "{{ compose_dir }}"
+    state: directory
+    owner: "{{ devvm_user }}"
+    group: "{{ devvm_user }}"
+    mode: "0755"
+
+- name: Ensure portal asset directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ devvm_user }}"
+    group: "{{ devvm_user }}"
+    mode: "0755"
+  loop:
+    - "{{ compose_dir }}/portal"
+    - "{{ compose_dir }}/portal/site"
+    - "{{ compose_dir }}/ts-devvm-config"
+
+- name: Render docker-compose.yml from template
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ compose_dir }}/docker-compose.yml"
+    owner: "{{ devvm_user }}"
+    group: "{{ devvm_user }}"
+    mode: "0644"
+  notify: recreate stack
+
+- name: Render portal Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ compose_dir }}/portal/Caddyfile"
+    owner: "{{ devvm_user }}"
+    group: "{{ devvm_user }}"
+    mode: "0644"
+  notify: recreate stack
+
+- name: Render portal landing page
+  ansible.builtin.template:
+    src: portal-index.html.j2
+    dest: "{{ compose_dir }}/portal/site/index.html"
+    owner: "{{ devvm_user }}"
+    group: "{{ devvm_user }}"
+    mode: "0644"
+
+- name: Render Tailscale serve config for ts-devvm
+  ansible.builtin.template:
+    src: ts-serve.json.j2
+    dest: "{{ compose_dir }}/ts-devvm-config/serve.json"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: recreate stack
+
+- name: Write stack secrets to a root-only env file
+  ansible.builtin.copy:
+    dest: "{{ compose_dir }}/.env"
+    mode: "0600"
+    owner: root
+    group: root
+    content: |
+      ANTHROPIC_API_KEY={{ anthropic_api_key }}
+      TS_AUTHKEY_DEVVM={{ ts_authkey_devvm | default('') }}
+      CLAUDE_TERMINAL_PASSWORD={{ claude_terminal_password | default('changeme') }}
+  no_log: true
+
+- name: Ensure stack is up to date
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_dir }}"
+    state: present
+    build: always
+    pull: always
+    remove_orphans: true

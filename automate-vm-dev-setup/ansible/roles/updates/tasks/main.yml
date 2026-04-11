@@ -1,0 +1,142 @@
+---
+# Self-update timers for everything that isn't covered by unattended-upgrades
+# (which is configured in the `base` role). containrrr/watchtower was
+# archived in December 2025 so we don't use it - instead we drive container
+# image updates through the same ansible-pull path we use for initial
+# provisioning, which gives us one reconciliation mechanism end-to-end.
+
+# ---- mise (dev tools under $HOME) ------------------------------------------
+- name: Create mise upgrade unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/mise-upgrade.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Upgrade mise-managed dev tools
+
+      [Service]
+      Type=oneshot
+      User={{ devvm_user }}
+      ExecStart=/home/{{ devvm_user }}/.local/bin/mise upgrade --bump
+      ExecStart=/home/{{ devvm_user }}/.local/bin/mise self-update -y
+
+- name: Create mise upgrade timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/mise-upgrade.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Weekly upgrade of mise tools
+
+      [Timer]
+      OnCalendar=Sun 05:00
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable mise upgrade timer
+  ansible.builtin.systemd:
+    name: mise-upgrade.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# ---- Docker compose stack (replaces watchtower) ----------------------------
+# The compose stack mixes upstream images (tailscale, caddy, filebrowser,
+# webtop) with images we build locally (code-server, claude-agent). A single
+# systemd unit handles both:
+#
+#   docker compose build --pull     # rebuild local images against fresh base
+#   docker compose pull             # refresh upstream images
+#   docker compose up -d --remove-orphans
+#
+# This runs in the compose project directory rendered by the `containers`
+# role, so it picks up any template changes from the preceding ansible-pull
+# automatically.
+- name: Create compose update unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/devvm-compose-update.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Pull and rebuild devvm docker compose stack
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      WorkingDirectory={{ compose_dir }}
+      ExecStart=/usr/bin/docker compose build --pull
+      ExecStart=/usr/bin/docker compose pull
+      ExecStart=/usr/bin/docker compose up -d --remove-orphans
+      ExecStartPost=/usr/bin/docker image prune -f
+
+- name: Create compose update timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/devvm-compose-update.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Scheduled refresh of devvm docker compose stack
+
+      [Timer]
+      OnCalendar={{ compose_update_schedule }}
+      Persistent=true
+      RandomizedDelaySec=15min
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable compose update timer
+  ansible.builtin.systemd:
+    name: devvm-compose-update.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# ---- ansible-pull self-reconciliation --------------------------------------
+# Weekly re-run of the full playbook. This is the ONE path that keeps the
+# declarative configuration (tool list, extensions list, compose template,
+# Caddyfile, portal HTML) authoritative. Any out-of-band edit made on any
+# surface gets overwritten here.
+#
+# bootstrap.sh is copied to /usr/local/sbin/ by the base role and picks up
+# its secrets from /etc/devvm/bootstrap.env written at first provisioning.
+- name: Create ansible-pull reconcile unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/devvm-ansible-pull.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Reconcile devvm configuration via ansible-pull
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      EnvironmentFile=-/etc/devvm/bootstrap.env
+      ExecStart=/usr/local/sbin/devvm-bootstrap.sh
+
+- name: Create ansible-pull reconcile timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/devvm-ansible-pull.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Weekly reconcile of devvm configuration
+
+      [Timer]
+      OnCalendar=Sun 03:30
+      Persistent=true
+      RandomizedDelaySec=30min
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable ansible-pull reconcile timer
+  ansible.builtin.systemd:
+    name: devvm-ansible-pull.timer
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -1,0 +1,48 @@
+---
+# Top-level playbook run by ansible-pull on each devvm.
+# Each role is tagged so `ansible-pull ... --tags tailscale,containers`
+# can re-run just part of the stack.
+
+- name: Configure devvm
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: true
+
+  vars_files:
+    - group_vars/all.yml
+
+  pre_tasks:
+    - name: Ensure /etc/devvm exists
+      ansible.builtin.file:
+        path: /etc/devvm
+        state: directory
+        mode: "0755"
+
+  roles:
+    - role: base          # apt, timezone, unattended-upgrades
+      tags: [base, updates]
+
+    - role: user          # primary user, sudoers, authorized_keys
+      tags: [user]
+
+    - role: dotfiles      # chezmoi apply
+      tags: [dotfiles]
+
+    - role: tailscale     # wraps artis3n.tailscale.machine
+      tags: [tailscale]
+
+    - role: docker        # docker-ce + compose plugin
+      tags: [docker]
+
+    - role: mise          # mise + global dev tools
+      tags: [mise, tools]
+
+    - role: dev_tools     # claude code, apt-only tools, shell plugins
+      tags: [tools]
+
+    - role: containers    # render docker-compose.yml and up -d
+      tags: [containers]
+
+    - role: updates       # watchtower timer, mise upgrade timer
+      tags: [updates]
