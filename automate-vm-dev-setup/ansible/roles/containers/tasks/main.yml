@@ -29,6 +29,7 @@
       ANTHROPIC_API_KEY={{ anthropic_api_key }}
       TS_AUTHKEY_CODE={{ ts_authkey_code | default('') }}
       TS_AUTHKEY_FILES={{ ts_authkey_files | default('') }}
+      TS_AUTHKEY_DESKTOP={{ ts_authkey_desktop | default('') }}
   no_log: true
 
 - name: Ensure stack is up to date

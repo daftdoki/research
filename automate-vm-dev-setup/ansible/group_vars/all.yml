@@ -135,5 +135,27 @@ code_server_settings:
 
 filebrowser_image: filebrowser/filebrowser:latest
 
+# ---- Optional web-accessible desktop environment --------------------------
+# Enable to run a full Linux desktop (XFCE) in the browser via KasmVNC/Selkies.
+# Critical property: this container bind-mounts the host's real /home/{{ devvm_user }}
+# as its /config, so `$HOME` is literally the same filesystem that the SSH
+# shell and code-server see. Dev tools (mise-managed), dotfiles, git config,
+# VS Code desktop settings, and the shared workdir are all one set of files.
+# No sync protocol is needed — there's only one copy to begin with.
+webtop_enabled: true
+webtop_image: lscr.io/linuxserver/webtop:ubuntu-xfce  # ubuntu|alpine|fedora|arch x xfce|kde|mate|i3
+webtop_timezone: Etc/UTC
+# Extra apt packages installed into the webtop image at first boot via
+# /config/custom-cont-init.d (linuxserver's mod-scripts-init pattern).
+# These are *desktop* apps (browser, editors, etc.) - dev CLI tools live in
+# mise and are shared from the host home dir, so we deliberately don't put
+# them here.
+webtop_apt_packages:
+  - firefox
+  - chromium
+  - libreoffice
+  - meld
+  - gnome-terminal
+
 watchtower_image: containrrr/watchtower:latest
 watchtower_schedule: "0 0 4 * * *"   # 04:00 nightly

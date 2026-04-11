@@ -349,3 +349,87 @@ Files modified:
 - Consider adding a systemd timer that runs `ansible-pull` weekly — this would re-pull the repo, rebuild local images, and restart the stack without manual intervention. Right now only `mise-upgrade.timer` runs; everything else assumes a person re-runs ansible-pull periodically.
 - Consider running claude-code itself from a single source of truth (e.g. a global `/opt/claude/bin` directory shared across all contexts via bind-mount) to avoid three separate installs. The three-install approach is simpler and was chosen for this iteration.
 - Sharing the Claude Code session/auth state (`~/.claude/`) between the SSH shell and the VS Code integrated terminal is automatic because both see `/home/me`. Agent containers are deliberately kept separate — each agent maintains its own auth state inside its isolated workspace.
+
+---
+
+## Follow-up: optional remote-desktop surface with guaranteed sync
+
+Requirement: add a desktop environment accessible only remotely through an RDP-like protocol and also via a web interface, integrated with the existing environments so that "no matter how I'm accessing these tools, I have the same setup of programs, files and tools that are all in sync. It should not be possible for them to get out of sync."
+
+### Option survey
+
+| Option | Category | Pros | Cons |
+|---|---|---|---|
+| **linuxserver/webtop** (Ubuntu × XFCE) | Single container desktop | One image, KasmVNC+Selkies streaming (rebased June 2025), PUID/PGID for bind-mounted home, fits existing "container + tailscale sidecar" pattern, low latency WebRTC, audio, clipboard, fully HTML5 | Image is opinionated; desktop app set needs to be declared via linuxserver `DOCKER_MODS` |
+| Kasm Workspaces | Multi-user platform | Enterprise features, per-user disposable sessions, web-based management UI | Way too much machinery for single-user dev VM |
+| Apache Guacamole | Web gateway to RDP/VNC/SSH | Great if you already have machines to proxy | Wrong shape — does not host the desktop, only proxies. Requires a secondary desktop somewhere. |
+| Selkies (direct) | WebRTC streaming library | Fastest possible, hardware-accelerated | More plumbing; webtop already wraps this |
+| noVNC + TigerVNC | Classic | Simplest, widest compat | Higher latency than Selkies; less polished UX |
+| xrdp | Native RDP | Works with Microsoft RDP clients and Remmina | Needs a full desktop session in the container to be useful; duplicates webtop's job |
+| Sunshine/Moonlight | Game-streaming | Very low latency | Optimized for gaming, not desktop productivity; no browser client by default |
+| RustDesk | TeamViewer clone, self-hostable | Simple | Standalone product, doesn't integrate with compose stack as cleanly |
+
+**Pick:** `linuxserver/webtop:ubuntu-xfce`. Same reasoning as code-server: Docker-first, browser-first, integrates into the tailscale sidecar pattern we're already using. Selkies under the hood gives near-native latency.
+
+### Anti-drift design: "share storage, don't sync it"
+
+There are two classes of solution to "all surfaces must be in sync":
+
+1. **Replicate + sync protocol** (rsync / Syncthing / git / VS Code Settings Sync across separate homes). Has an out-of-sync window and failure modes.
+2. **Single filesystem, multiple mounts.** All access surfaces on the same VM; `$HOME` is the same inode everywhere. No drift possible because there is no second copy.
+
+Approach 2 is strictly better here because the surfaces are all processes on the same machine. It works like this:
+
+- The host user `me` lives in `/home/me` on the VM filesystem.
+- code-server container: bind-mount `/home/me:/home/me`, run as uid 1000.
+- webtop container: bind-mount `/home/me:/config`, set `PUID=1000 PGID=1000`. Linuxserver's abc user effectively IS the host's me user.
+- Each agent container: bind-mount `/home/me/work` at the same absolute path, run as uid 1000.
+- Dotfiles (chezmoi), mise tools, git config, ssh keys, Claude config all live under `$HOME` → single copy visible to every surface.
+
+The only state that *genuinely* differs between code-server and VS Code Desktop (running inside webtop) is:
+- `~/.local/share/code-server/User/settings.json` (code-server)
+- `~/.config/Code/User/settings.json` (desktop)
+
+because the two engines use different storage paths. For that one case we use VS Code Settings Sync backed by GitHub — this is the only piece of "sync-with-protocol" in the design, and it's scoped to editor preferences, not to files, tools, or source state.
+
+### Mechanical reconciliation
+
+Even with single-copy state, a human can edit a config file on one surface and change it. To ensure the *declared* configuration is still authoritative:
+
+- `updates` role runs `ansible-pull` on a weekly timer (TODO: add this if not already present).
+- Watchtower updates container images nightly.
+- `mise-upgrade.timer` upgrades mise tools weekly.
+- `unattended-upgrades` applies security patches daily.
+
+Re-running `ansible-pull` will:
+- Rebuild the custom code-server image if the Dockerfile changed
+- Re-render the docker-compose.yml and recreate containers with up-to-date image references
+- Re-apply chezmoi dotfiles
+- Re-install any new tools listed in `mise_global_tools`
+- Re-install the `code_server_extensions` list
+
+Net effect: out-of-band changes get overwritten back to the declared state on the next timer fire.
+
+### Artifacts changed
+
+- `ansible/group_vars/all.yml` — added `webtop_enabled`, `webtop_image`, `webtop_timezone`, `webtop_apt_packages`
+- `ansible/roles/containers/templates/docker-compose.yml.j2` — added `webtop` service and `ts-desktop` tailscale sidecar (guarded by `webtop_enabled`). The webtop container:
+  - Runs as `PUID=1000 PGID=1000`
+  - Bind-mounts `/home/{{ devvm_user }}:/config` (home-dir sharing)
+  - Bind-mounts `{{ shared_workdir }}` at the same absolute path
+  - Bind-mounts the host docker socket
+  - Uses the linuxserver `universal-package-install` DOCKER_MOD to layer in a declared list of desktop apt packages at first boot
+  - `shm_size: 2gb` for Chromium/Firefox
+- `README.md` — new sections:
+  - Desktop added to the "Claude Code surfaces" table
+  - "Why the surfaces cannot drift out of sync" with the specific mechanisms
+  - "Why linuxserver/webtop for the optional desktop" comparing alternatives
+  - Architecture diagram shows the desktop container and the "single $HOME" principle
+  - Files section updated
+
+### Decisions left to the user
+
+- **Desktop flavor**: XFCE is lightweight and the default; KDE is prettier but needs more RAM. Changed via `webtop_image`.
+- **Native RDP access**: Not enabled by default. If wanted, install `xrdp` in a custom webtop-derived image and expose port 3389 via Tailscale serve. Recommended only if browser access isn't sufficient for some reason (e.g. Microsoft Remote Desktop mobile app ergonomics).
+- **GPU acceleration**: If the underlying VM has a GPU passed through, set `DRINODE` and add `/dev/dri/renderD128`. Selkies will use NVENC/VAAPI for encoding.
+

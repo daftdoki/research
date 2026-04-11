@@ -64,6 +64,54 @@ services:
       - ./ts-code-state:/var/lib/tailscale
       - ./ts-code-config:/config
 
+{% if webtop_enabled | default(false) %}
+  # -------- Optional full Linux desktop in the browser -------------------
+  # linuxserver/webtop (KasmVNC + Selkies) streams a full XFCE desktop to
+  # any browser. PUID/PGID match the host devvm user so the container's
+  # $HOME *is* the host's /home/{{ devvm_user }}. That is the key property
+  # keeping all surfaces in sync: there is only one filesystem, one set of
+  # dotfiles, one mise install, one git config, one .ssh directory, one
+  # VS Code profile. Impossible to drift because nothing is duplicated.
+  webtop:
+    image: {{ webtop_image }}
+    restart: unless-stopped
+    # Webtop needs some capabilities for its desktop session manager.
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      PUID: "{{ devvm_user_uid }}"
+      PGID: "{{ devvm_user_uid }}"
+      TZ: "{{ webtop_timezone }}"
+      TITLE: "devvm desktop"
+      # Extra apt packages to install on first boot (linuxserver mod).
+      DOCKER_MODS: linuxserver/mods:universal-package-install
+      INSTALL_PACKAGES: "{{ webtop_apt_packages | join('|') }}"
+    volumes:
+      # $HOME IS the host's /home/{{ devvm_user }} - that's the whole trick.
+      - /home/{{ devvm_user }}:/config
+      # Expose the shared workdir at the same absolute path so paths match
+      # exactly what the SSH shell, code-server, and the agents see.
+      - {{ shared_workdir }}:{{ shared_workdir }}
+      # Docker socket so you can use docker / docker compose from inside
+      # the desktop's terminal too, against the same daemon.
+      - /var/run/docker.sock:/var/run/docker.sock
+    shm_size: "2gb"     # browsers need this
+    network_mode: "service:ts-desktop"
+
+  ts-desktop:
+    <<: *tailscale-sidecar
+    hostname: devvm-desktop
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY_DESKTOP}
+      TS_HOSTNAME: devvm-desktop
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/desktop-serve.json
+      TS_EXTRA_ARGS: "--advertise-tags=tag:devvm"
+    volumes:
+      - ./ts-desktop-state:/var/lib/tailscale
+      - ./ts-desktop-config:/config
+{% endif %}
+
   # -------- Web-based file manager for home dir ---------------------------
   filebrowser:
     image: {{ filebrowser_image }}
