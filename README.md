@@ -157,7 +157,17 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 2 research projects
+## 3 research projects
+
+### [Discogs MCP Servers for a Collection + Wantlist Agent](https://github.com/daftdoki/research/tree/main/discogs-mcp-servers#readme) (2026-04-11 03:55)
+
+Several Discogs MCP servers are available for interacting with a user's music collection and wantlist, but [cswkim/discogs-mcp-server](https://github.com/cswkim/discogs-mcp-server) stands out as the only one providing comprehensive, first-class tools for both collection and wantlist management, making it the best foundation for an interactive agent. [rianvdm/discogs-mcp](https://github.com/rianvdm/discogs-mcp) offers a superior OAuth authentication flow and unique recommendation features but lacks wantlist support, while [michielryvers/discogs-mcp](https://www.nuget.org/packages/discogs-mcp) is a flexible but low-level REST wrapper not optimized for LLM interaction. To cover the digital collection aspect, pairing a Discogs-focused MCP server with a local music MCP project like [gorums/music-mcp-server](https://github.com/gorums/music-mcp-server) is recommended, as no Discogs server natively handles local digital files.
+
+Key findings:
+- **cswkim/discogs-mcp-server**: Best overall; fully supports collection and wantlist; actively developed.
+- **rianvdm/discogs-mcp**: Best authentication and recommendations, but lacks wantlist tools.
+- **michielryvers/discogs-mcp**: Thin, generic wrapper providing maximum flexibility but minimal user-friendliness.
+- No single MCP server supports both Discogs (physical) and local digital libraries; combining separate servers is necessary for full coverage.
 
 ### [Automating Bandcamp Collection Downloads and Reconciliation](https://github.com/daftdoki/research/tree/main/bandcamp-download-automation#readme) (2026-04-10 15:40)
 
