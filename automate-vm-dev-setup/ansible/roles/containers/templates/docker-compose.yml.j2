@@ -1,0 +1,113 @@
+# Rendered by Ansible - do not edit by hand.
+# Defines the always-on services for the dev VM:
+#   - code-server        : browser VS Code
+#   - filebrowser        : home dir file manager
+#   - watchtower         : automatic image updates
+#   - claude-agent-N     : sandboxed Claude Code instances
+#   - ts-code / ts-files : tailscale sidecars exposing the above via MagicDNS
+
+name: devvm
+
+x-tailscale-sidecar: &tailscale-sidecar
+  image: tailscale/tailscale:latest
+  restart: unless-stopped
+  cap_add: [NET_ADMIN, NET_RAW]
+  devices: [/dev/net/tun]
+  volumes:
+    - /var/lib/tailscale
+    - /dev/net/tun:/dev/net/tun
+
+services:
+
+  # -------- VS Code in the browser ----------------------------------------
+  code-server:
+    image: {{ code_server_image }}
+    restart: unless-stopped
+    user: "{{ devvm_user_uid }}:{{ devvm_user_uid }}"
+    environment:
+      DOCKER_USER: "{{ devvm_user }}"
+      PASSWORD_FILE: /run/secrets/code_password
+    volumes:
+      - /home/{{ devvm_user }}:/home/{{ devvm_user }}
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: >
+      --auth=none
+      --bind-addr 0.0.0.0:8080
+      {% for ext in code_server_extensions %}
+      --install-extension {{ ext }}
+      {% endfor %}
+    network_mode: "service:ts-code"
+
+  ts-code:
+    <<: *tailscale-sidecar
+    hostname: devvm-code
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY_CODE}
+      TS_HOSTNAME: devvm-code
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/code-serve.json
+      TS_EXTRA_ARGS: "--advertise-tags=tag:devvm"
+    volumes:
+      - ./ts-code-state:/var/lib/tailscale
+      - ./ts-code-config:/config
+
+  # -------- Web-based file manager for home dir ---------------------------
+  filebrowser:
+    image: {{ filebrowser_image }}
+    restart: unless-stopped
+    user: "{{ devvm_user_uid }}:{{ devvm_user_uid }}"
+    volumes:
+      - /home/{{ devvm_user }}:/srv
+      - ./filebrowser:/database
+    network_mode: "service:ts-files"
+
+  ts-files:
+    <<: *tailscale-sidecar
+    hostname: devvm-files
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY_FILES}
+      TS_HOSTNAME: devvm-files
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/files-serve.json
+      TS_EXTRA_ARGS: "--advertise-tags=tag:devvm"
+    volumes:
+      - ./ts-files-state:/var/lib/tailscale
+      - ./ts-files-config:/config
+
+  # -------- Claude agent pool --------------------------------------------
+  # Each agent is a locked-down container with network-allowlist firewall
+  # (lifted from anthropics/claude-code/.devcontainer/init-firewall.sh).
+  # Safe to run `claude --dangerously-skip-permissions` inside.
+{% for agent in claude_agents %}
+  {{ agent.name }}:
+    build:
+      context: ../agent-image
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    hostname: {{ agent.name }}
+    cap_add: [NET_ADMIN]       # needed so init-firewall.sh can write ipset rules
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      AGENT_NAME: {{ agent.name }}
+    volumes:
+      - {{ agent.workspace }}:/workspace
+    working_dir: /workspace
+    # ttyd gives each agent a browser terminal on its own internal port;
+    # a single reverse proxy in front (see ts-agents) exposes them all.
+    command: >
+      ttyd -p 7681 -W -c user:${CLAUDE_TERMINAL_PASSWORD:-changeme}
+           bash -lc "claude --dangerously-skip-permissions"
+{% endfor %}
+
+  # -------- Watchtower: keep all of the above up to date ------------------
+  watchtower:
+    image: {{ watchtower_image }}
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: >
+      --cleanup
+      --schedule "{{ watchtower_schedule }}"
+      --label-enable
+    labels:
+      - com.centurylinklabs.watchtower.enable=true

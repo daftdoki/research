@@ -1,0 +1,39 @@
+---
+# Periodic self-update for things that aren't covered by unattended-upgrades
+# (which is configured in the `base` role) or watchtower (containers).
+
+- name: Create mise upgrade unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/mise-upgrade.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Upgrade mise-managed dev tools
+
+      [Service]
+      Type=oneshot
+      User={{ devvm_user }}
+      ExecStart=/home/{{ devvm_user }}/.local/bin/mise upgrade --bump
+      ExecStart=/home/{{ devvm_user }}/.local/bin/mise self-update -y
+
+- name: Create mise upgrade timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/mise-upgrade.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Weekly upgrade of mise tools
+
+      [Timer]
+      OnCalendar=Sun 05:00
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable mise upgrade timer
+  ansible.builtin.systemd:
+    name: mise-upgrade.timer
+    enabled: true
+    state: started
+    daemon_reload: true

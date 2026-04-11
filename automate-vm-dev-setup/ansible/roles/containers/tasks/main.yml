@@ -1,0 +1,39 @@
+---
+# Renders a docker-compose stack for the long-running services on the VM
+# (VS Code, file browser, Claude agent pool, watchtower) and brings it up.
+
+- name: Ensure compose directory exists
+  ansible.builtin.file:
+    path: "{{ compose_dir }}"
+    state: directory
+    owner: "{{ devvm_user }}"
+    group: "{{ devvm_user }}"
+    mode: "0755"
+
+- name: Render docker-compose.yml from template
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ compose_dir }}/docker-compose.yml"
+    owner: "{{ devvm_user }}"
+    group: "{{ devvm_user }}"
+    mode: "0644"
+  notify: recreate stack
+
+- name: Write stack secrets to a root-only env file
+  ansible.builtin.copy:
+    dest: "{{ compose_dir }}/.env"
+    mode: "0600"
+    owner: root
+    group: root
+    content: |
+      ANTHROPIC_API_KEY={{ anthropic_api_key }}
+      TS_AUTHKEY_CODE={{ ts_authkey_code | default('') }}
+      TS_AUTHKEY_FILES={{ ts_authkey_files | default('') }}
+  no_log: true
+
+- name: Ensure stack is up to date
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_dir }}"
+    state: present
+    pull: always
+    remove_orphans: true

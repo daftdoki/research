@@ -1,0 +1,129 @@
+---
+# ============================================================================
+# Single source of truth for the devvm. Adding a new tool = editing this file.
+# ============================================================================
+
+# ---- Identity --------------------------------------------------------------
+devvm_user: me
+devvm_user_uid: 1000
+devvm_user_shell: /bin/bash
+devvm_user_ssh_keys:
+  - "ssh-ed25519 AAAA...primary..."
+  - "ssh-ed25519 AAAA...laptop..."
+
+# ---- Dotfiles --------------------------------------------------------------
+# chezmoi clones this repo and applies it into /home/{{ devvm_user }}.
+dotfiles_repo: "https://github.com/me/dotfiles.git"
+dotfiles_branch: "main"
+
+# ---- Tailscale -------------------------------------------------------------
+# Using an OAuth client means the secret does not expire, and tags on the
+# client restrict what machines it can create.
+tailscale_oauth_client_id: "kxxxxxxxxxxxxxxxxxxxxx"
+# Injected at runtime via -e on ansible-pull
+# ts_oauth_client_secret: "tskey-client-..."
+
+tailscale_tags:
+  - devvm
+tailscale_oauth_ephemeral: true
+tailscale_oauth_preauthorized: true
+tailscale_hostname: "{{ ansible_hostname }}"
+tailscale_ssh: true     # enable tailscale ssh
+
+# ---- Dev tools managed by mise ---------------------------------------------
+# Add to this list to install a new version-managed tool globally. No
+# per-tool role code needed; the mise role does a single `mise use -g`.
+mise_global_tools:
+  - python@3.13
+  - python@3.12        # pinned side version
+  - node@lts
+  - uv@latest
+  - rust@stable
+  - go@latest
+  - ruby@3.3
+  - deno@latest
+  - bun@latest
+  - neovim@stable
+  - lazygit@latest
+  - fd@latest
+  - ripgrep@latest
+  - fzf@latest
+  - jq@latest
+  - yq@latest
+  - gh@latest
+  - starship@latest
+  - zoxide@latest
+  - eza@latest
+  - bat@latest
+  - delta@latest
+  - direnv@latest
+  - just@latest
+  - helm@latest
+  - kubectl@latest
+  - k9s@latest
+  - terraform@latest
+  - awscli@latest
+
+# Plain apt packages (things mise can't cover, or that prefer system pkgs).
+apt_dev_packages:
+  - build-essential
+  - pkg-config
+  - libssl-dev
+  - zlib1g-dev
+  - libbz2-dev
+  - libreadline-dev
+  - libsqlite3-dev
+  - libffi-dev
+  - liblzma-dev
+  - tmux
+  - htop
+  - btop
+  - tree
+  - unzip
+  - rsync
+  - ncdu
+  - iftop
+  - httpie
+  - man-db
+
+# ---- Claude Code -----------------------------------------------------------
+claude_code_version: latest
+# Injected at runtime via -e
+# anthropic_api_key: "sk-ant-..."
+
+# Multi-agent sandbox pool. Each entry becomes its own docker compose service.
+claude_agents:
+  - name: agent-0
+    workspace: /home/me/agents/agent-0
+  - name: agent-1
+    workspace: /home/me/agents/agent-1
+  - name: agent-2
+    workspace: /home/me/agents/agent-2
+  - name: agent-3
+    workspace: /home/me/agents/agent-3
+
+# ---- Containers (code-server, filebrowser, watchtower, claude-agents) -----
+# Paths rendered into docker-compose.yml by the containers role.
+compose_dir: /opt/devvm/compose
+compose_data_dir: /srv/devvm
+
+code_server_image: codercom/code-server:latest
+code_server_extensions:
+  - ms-python.python
+  - rust-lang.rust-analyzer
+  - golang.go
+  - redhat.vscode-yaml
+  - tamasfe.even-better-toml
+  - esbenp.prettier-vscode
+  - vscodevim.vim
+  - eamodio.gitlens
+  - anthropic.claude-code    # when available on Open VSX
+code_server_settings:
+  telemetry.telemetryLevel: "off"
+  editor.fontSize: 14
+  editor.fontFamily: "JetBrainsMono Nerd Font"
+
+filebrowser_image: filebrowser/filebrowser:latest
+
+watchtower_image: containrrr/watchtower:latest
+watchtower_schedule: "0 0 4 * * *"   # 04:00 nightly

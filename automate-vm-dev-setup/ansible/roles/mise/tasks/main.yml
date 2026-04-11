@@ -1,0 +1,45 @@
+---
+# mise is the single version manager: python, node, uv, pyenv-equivalent,
+# neovim, rust, go, and a growing list of CLI tools. Everything is
+# installed as {{ devvm_user }}, not root, so VS Code's integrated terminal
+# sees it natively.
+
+- name: Install mise from upstream installer
+  become_user: "{{ devvm_user }}"
+  ansible.builtin.shell: |
+    set -e
+    if ! command -v mise >/dev/null 2>&1; then
+        curl -fsSL https://mise.run | sh
+    fi
+  args:
+    creates: "/home/{{ devvm_user }}/.local/bin/mise"
+
+- name: Activate mise in user's bash
+  become_user: "{{ devvm_user }}"
+  ansible.builtin.blockinfile:
+    path: "/home/{{ devvm_user }}/.bashrc"
+    create: true
+    marker: "# {mark} MISE"
+    block: |
+      export PATH="$HOME/.local/bin:$PATH"
+      eval "$(mise activate bash)"
+
+- name: Install global tools via mise
+  become_user: "{{ devvm_user }}"
+  ansible.builtin.command:
+    cmd: "/home/{{ devvm_user }}/.local/bin/mise use -g {{ item }}"
+    creates: "/home/{{ devvm_user }}/.local/share/mise/installs/{{ item | regex_replace('@.*$', '') }}"
+  loop: "{{ mise_global_tools }}"
+
+- name: Render a mise config file (also a good inventory of what's installed)
+  become_user: "{{ devvm_user }}"
+  ansible.builtin.copy:
+    dest: "/home/{{ devvm_user }}/.config/mise/config.toml"
+    mode: "0644"
+    content: |
+      # Managed by Ansible. Edit group_vars/all.yml to change.
+      [tools]
+      {% for t in mise_global_tools %}
+      {% set name, version = (t ~ '@').split('@')[0:2] %}
+      {{ name }} = "{{ version or 'latest' }}"
+      {% endfor %}

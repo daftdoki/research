@@ -1,0 +1,35 @@
+---
+# Thin wrapper around artis3n.tailscale.machine. Using OAuth client auth
+# so secrets never expire and tags on the OAuth client constrain what this
+# machine can register as.
+
+- name: Join tailnet
+  ansible.builtin.include_role:
+    name: artis3n.tailscale.machine
+  vars:
+    tailscale_oauth_client_id: "{{ tailscale_oauth_client_id }}"
+    tailscale_oauth_secret: "{{ ts_oauth_client_secret }}"
+    tailscale_tags: "{{ tailscale_tags }}"
+    tailscale_oauth_ephemeral: "{{ tailscale_oauth_ephemeral }}"
+    tailscale_oauth_preauthorized: "{{ tailscale_oauth_preauthorized }}"
+    tailscale_args: >-
+      --hostname={{ tailscale_hostname }}
+      {% if tailscale_ssh %}--ssh{% endif %}
+      --accept-dns=true
+
+- name: Lock down SSH so only tailnet can reach it
+  ansible.builtin.copy:
+    dest: /etc/ufw/applications.d/tailscale-ssh
+    mode: "0644"
+    content: |
+      [Tailscale-SSH]
+      title=SSH over tailnet
+      description=Allow SSH only from the tailnet interface
+      ports=22/tcp
+  notify: reload ufw
+
+- name: Ensure ufw allows all traffic in on tailscale0
+  community.general.ufw:
+    rule: allow
+    interface: tailscale0
+    direction: in
