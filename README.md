@@ -18,6 +18,62 @@ from datetime import datetime, timezone
 # Model to use for generating summaries
 MODEL = "github/gpt-4.1"
 
+# Safety cap for the text we pipe into `llm`. Keeps us comfortably under
+# GitHub Models' 8000-token input cap for gpt-4.1 even on projects that
+# omit the standard Question/Goal and Answer/Summary headers and therefore
+# fall back to the full README.
+LLM_INPUT_MAX_CHARS = 20000
+
+
+def extract_summary_input(readme_text):
+    """Return just the parts of a research README that matter for a short
+    index-page summary: the title (H1) plus the "## Question / Goal" and
+    "## Answer / Summary" H2 sections that AGENTS.md mandates. Falls back
+    to the full README if neither section is present. In all cases the
+    result is truncated to LLM_INPUT_MAX_CHARS so the llm call stays
+    within GitHub Models' input token cap."""
+    lines = readme_text.splitlines()
+
+    title_line = next((ln for ln in lines if ln.startswith('# ')), None)
+
+    # Split on H2 headers.
+    sections = {}  # heading text (lowercase) -> (original heading line, body)
+    current_heading = None
+    current_body = []
+    for ln in lines:
+        if ln.startswith('## '):
+            if current_heading is not None:
+                sections[current_heading.lower()] = (current_heading, '\n'.join(current_body).rstrip())
+            current_heading = ln[3:].strip()
+            current_body = []
+        elif current_heading is not None:
+            current_body.append(ln)
+    if current_heading is not None:
+        sections[current_heading.lower()] = (current_heading, '\n'.join(current_body).rstrip())
+
+    def find(*needles):
+        for key, value in sections.items():
+            if all(needle in key for needle in needles):
+                return value
+        return None
+
+    goal = find('goal') or find('question')
+    summary = find('summary') or find('answer')
+
+    if goal is None and summary is None:
+        # No standard headers - fall back to the full README, still capped.
+        return readme_text[:LLM_INPUT_MAX_CHARS]
+
+    parts = []
+    if title_line:
+        parts.append(title_line)
+    for section in (goal, summary):
+        if section is not None:
+            heading, body = section
+            parts.append(f"## {heading}\n\n{body}")
+    return '\n\n'.join(parts)[:LLM_INPUT_MAX_CHARS]
+
+
 # Get all subdirectories with their first commit dates
 research_dir = pathlib.Path.cwd()
 subdirs_with_dates = []
@@ -81,11 +137,16 @@ for dirname, commit_date in subdirs_with_dates:
             else:
                 print("*No description available.*")
     elif readme_path.exists():
-        # Generate new summary using llm command
+        # Generate new summary using llm command. We pipe only the parts of
+        # the README that matter for the summary (title + Question/Goal +
+        # Answer/Summary), trimmed to LLM_INPUT_MAX_CHARS, so long reports
+        # stay within the model's input token cap.
+        with open(readme_path, 'r') as f:
+            llm_input = extract_summary_input(f.read())
         prompt = """Summarize this research project concisely. Write just 1 paragraph (3-5 sentences) followed by an optional short bullet list if there are key findings. Vary your opening - don't start with "This report" or "This research". Include 1-2 links to key tools/projects. Be specific but brief. No emoji."""
         result = subprocess.run(
             ['llm', '-m', MODEL, '-s', prompt],
-            stdin=open(readme_path),
+            input=llm_input,
             capture_output=True,
             text=True,
             timeout=60
