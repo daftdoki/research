@@ -1,0 +1,8 @@
+A highly portable, automated dev VM setup is achieved by chaining together three abstraction layers: cloud-init user-data for platform-agnostic bootstrapping, ansible-pull for configuration management, and a Docker Compose application stack for all user-facing services. This architecture enables provisioning and updating an identical workstation across platforms (macOS/Multipass, Proxmox, AWS EC2) using the same declarative scripts and playbooks—no drift and no manual steps. All browser-accessible services (VS Code, file manager, Linux desktop, Claude agents) are unified under a single Tailscale MagicDNS hostname via a lightweight Caddy "portal", while agent containers are tightly sandboxed and safely run with relaxed permissions due to firewall constraints. Claude Code and all dev tools are available from SSH, VS Code, and browser desktops, with a single, real filesystem guaranteeing zero discrepancy between environments. Image updates and service changes are managed through ansible-pull and compose automation, removing the need for deprecated tools like Watchtower.
+
+**Key findings:**
+- **cloud-init**, **ansible-pull**, and **Docker Compose** provide true hypervisor-agnostic, repeatable automation.
+- Tool management via [`mise`](https://mise.jdx.dev) dramatically simplifies and accelerates CLI dev environment upkeep.
+- All container services are reverse proxied together by a [Caddy-based](https://caddyserver.com) mini-portal, surfaced under one HTTPS endpoint with automated, domain-based ACLs via Tailscale.
+- Security is maintained with outbound egress allowlisting for Claude agents and OAuth authentication for tailscale joining.
+- The entire stack can build portable golden images with Packer, ensuring extremely fast boot-to-ready times.
