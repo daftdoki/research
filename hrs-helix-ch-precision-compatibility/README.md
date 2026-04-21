@@ -17,7 +17,7 @@ Can an HRS HLX-090 Helix puck be used under a CH Precision L10, P10, D1.5, C1.2,
 2. **Are the factory feet "uniquely placed"?** Yes — the four corners are where the chassis is structurally stiff, where CH's vertical spike columns drop through, and where 10-Series chassis-stack columns line up. The corner is both the load path and the vibration-drain path by design. Helix pucks should therefore go near those corners, not in some other pattern. On 10-Series (L10, P10) the corner feet are removable with three Torx screws each, so the Helix can sit exactly where the factory foot was; on 1-Series (D1.5, C1.2, T1) the corner foot rings are fixed, so Helix pucks sit just inboard of them on the diagonals while the CH spikes are retracted up out of contact.
 3. **Known incompatibilities / best practices?** The big one: **run one drain path at a time — either CH spikes *or* Helix, never both in contact at once.** Retract (or remove) the CH spikes when installing Helix, so the chassis is resting solely on the Helix gimbal heads. Place pucks near the corners only. Expect to use **4 pucks** on each L10/P10/D1.5/C1.2 chassis and **3** on the T1. Watch for protruding fastener heads on 1-Series bottom plates. Keep the HRS Isolation Base (your M3X) under the Helix — HRS designed Helix to sit on an HRS base, not on a bare shelf. Consider adding an HRS Damping Plate on top of the D1.5 to treat top-chassis noise as well. Because you're on granite-topped M3Xs, Helix is likely a real upgrade over CH's spikes, which the CH manual itself says are sub-optimal on "hard, reflective surfaces such as granite, glass or marble."
 
-For additional and more detailed information see the [research notes](notes.md).
+For additional and more detailed information see the [research notes](notes.md). Follow-up Q&A (factory feet with spikes retracted vs Helix; why Delrin is used on granite) is in [follow-up-qa.md](follow-up-qa.md).
 
 ## Methodology
 
@@ -127,6 +127,7 @@ Two contacts at two different heights make the chassis an unstable pivot. If the
 
 - `README.md` — this report
 - `notes.md` — detailed research notes, raw findings, source list, work log
+- `follow-up-qa.md` — follow-up Q&A: using CH factory feet with spikes retracted vs. using Helix; and why a hard Delrin disc is used between spike and granite
 
 ## Original Prompt
 
