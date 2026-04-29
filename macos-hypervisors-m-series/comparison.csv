@@ -1,0 +1,16 @@
+tool,license,one_time_purchase,system_service_no_login,cli,fast_fs_sharing,snapshots,diverse_linux,bridged_lan_ip,web_ui,notes
+QEMU+libvirt,GPL/free,yes,yes (LaunchDaemon),"qemu, virsh, vmrun",virtio-fs,qcow2,yes (incl. x86 emul),yes (vmnet-bridged),via Cockpit,Most flexible; setup-heavy
+UTM,Apache 2.0/free,yes ($9.99 MAS optional),partial (UTM.app must run),utmctl,virtio-fs (Apple Virt) / 9p (QEMU),yes (QEMU mode),yes (incl. x86 emul),yes (vmnet bridged),no,Best free GUI; CLI is incomplete for snapshots
+Tart,Fair Source -> OSS in 2026,yes (free),yes,first-class,virtio-fs,via OCI clones,ARM64 only,yes (entitlement + softnet),via Orchard,CI/automation focused
+Lima/Colima,Apache 2.0/free,yes,yes,limactl,virtio-fs,yes,yes (30+ templates),yes via socket_vmnet,no,Excellent for Linux dev VMs
+OrbStack,proprietary subscription,no,partial (login app),orb,tuned virtio-fs (fastest),no,yes (many distros),no - internal bridge,no (native GUI),Free for personal non-commercial only
+vfkit,Apache 2.0/free,yes,yes,pure CLI,virtio-fs,no,image-oriented,yes via vmnet-helper,REST API,Embedded by Podman/minikube/CRC
+libkrun/krunvm/krunkit,Apache 2.0/free,yes,yes,CLI,partial,no,OCI images,partial,no,Micro-VM oriented; GPU passthrough
+Apple container,Apache 2.0/free,yes (macOS 26+),yes (container system daemon),Docker-like CLI,virtio-fs,image commit,any OCI Linux,host-shared subnet (not LAN bridge),no,Bundled with macOS Tahoe
+VirtualBuddy,BSD-2/free,yes,no (launch-at-login only),GUI-first,virtio-fs,APFS clone + VZ save,Ubuntu mostly,no (NAT only),no,Best for macOS guests
+VMware Fusion (Pro),Broadcom proprietary/free since 2024,yes (free),yes (vmrun + LaunchDaemon),vmrun,broken on Apple Silicon,snapshot tree,ARM64 distros,yes (bridged),no,Free now but shared folders missing
+Parallels Desktop Standard,subscription or one-time ~$220,yes,no (no service mode in Standard),prlctl,Parallels Tools,snapshot tree,ARM64 distros,yes (bridged),via DevOps Service,Standard lacks headless service
+Parallels Desktop Pro,subscription ~$120/yr,no,yes (first-class service mode),prlctl,Parallels Tools,snapshot tree,ARM64 distros,yes (bridged),Parallels DevOps Service (REST+web),Most polished service mode
+VirtualBox 7.2,GPL/free,yes,yes (VBoxHeadless+LaunchDaemon),VBoxManage,vboxsf (slow),snapshot tree,ARM64 Linux/BSD; dev preview,yes (bridged),phpVirtualBox 3rd party,Apple Silicon support still early
+Multipass,GPL/free,yes,yes (multipassd LaunchDaemon),first-class,sshfs,yes (multipass snapshot),Ubuntu only,no (NAT only on Apple Silicon),no,Officially Ubuntu-only
+Veertu Anka,Develop free; Build/Flow subscription,no,yes (daemon),anka,partial,yes,macOS-guest focused,partial (entitlement-gated),Anka Build cluster UI ($),Strong macOS-on-macOS CI tool
