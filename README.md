@@ -218,7 +218,7 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 12 research projects
+## 13 research projects
 
 ### [SnapRAID-Like Storage on Modern macOS (Apple Silicon)](https://github.com/daftdoki/research/tree/main/snapraid-macos-research#readme) (2026-05-13 15:39)
 
@@ -231,6 +231,16 @@ Key points:
 - For enclosure choice, prefer Thunderbolt JBODs (for SMART, spin-down control); APFS per disk recommended.
 - Pooling via SnapRAID’s `pool` directive; real-time solutions (e.g., ZFS) do not allow disk sleep.
 - Recommended automation: `snapraid-runner`, LaunchAgents, and `pmset` for disk power management.
+
+### [EcoFlow Delta Pro 3 as a Notifying UPS: Architectures for Auto-Shutdown](https://github.com/daftdoki/research/tree/main/ecoflow-delta-pro-3-ups-notifications#readme) (2026-05-13 15:38)
+
+Leveraging the EcoFlow Delta Pro 3 as a notifying UPS requires bridging its lack of a standard USB-HID interface by integrating local sensors and network automation. The proposed architecture combines a Home Assistant MQTT integration for battery and status telemetry (via [TarasKhust/ecoflow-api-mqtt](https://github.com/TarasKhust/ecoflow-api-mqtt)), a local energy-monitoring smart plug for instant, cloud-independent mains status, and the Home Assistant NUT add-on as a protocol bridge. This setup lets any host communicate and shut down cleanly via industry-standard NUT tools, with optional automations for additional triggers. Future improvements include using the [rabits/ef-ble-reverse](https://github.com/rabits/ef-ble-reverse) Bluetooth project for fully local telemetry and exploring DP3’s CAN bus, though CAN reverse engineering is still an ongoing effort.
+
+**Key Findings:**
+- Combining a smart plug and Home Assistant provides real-time, local "power-loss detected" signals.
+- EcoFlow API cloud integrations offer rich battery telemetry but depend on internet connectivity.
+- The NUT protocol bridge enables hosts to use familiar shutdown tools with custom UPS data.
+- Developing fully local solutions via Bluetooth and CAN bus remains feasible but requires further device protocol discovery.
 
 ### [Virtual Machine Hypervisors for macOS on Apple Silicon](https://github.com/daftdoki/research/tree/main/macos-hypervisors-m-series#readme) (2026-04-29 19:00)
 

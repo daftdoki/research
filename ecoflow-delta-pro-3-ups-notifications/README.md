@@ -1,5 +1,10 @@
 # EcoFlow Delta Pro 3 as a Notifying UPS: Architectures for Auto-Shutdown
 
+<!-- AI-GENERATED-NOTE -->
+> [!NOTE]
+> This is an AI-generated research report. All text and code in this report was created by an LLM (Large Language Model). For more information on how these reports are created, see the [main research repository](https://github.com/daftdoki/research).
+<!-- /AI-GENERATED-NOTE -->
+
 ## Question / Goal
 
 The EcoFlow Delta Pro 3 (DP3) acts as an excellent online-style UPS — it
