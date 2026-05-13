@@ -1,5 +1,10 @@
 # Virtual Machine Hypervisors for macOS on Apple Silicon
 
+<!-- AI-GENERATED-NOTE -->
+> [!NOTE]
+> This is an AI-generated research report. All text and code in this report was created by an LLM (Large Language Model). For more information on how these reports are created, see the [main research repository](https://github.com/daftdoki/research).
+<!-- /AI-GENERATED-NOTE -->
+
 ## Question
 
 Which hypervisor / VM platform is the best fit on a modern macOS Apple Silicon (M-series) Mac, given a preference for free or one-time-purchase licensing and a feature wishlist that includes: VMs as system services that survive logout, mature CLI tooling, fast host↔guest file sharing, snapshots, broad Linux distro support, true bridged networking (the VM gets its own IP on the LAN), and ideally a web UI? See the [Original Prompt](#original-prompt).
