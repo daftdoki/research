@@ -218,7 +218,18 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 9 research projects
+## 10 research projects
+
+### [mergerfs-style options on modern macOS (Apple Silicon)](https://github.com/daftdoki/research/tree/main/mergerfs-macos-options#readme) (2026-04-29 17:44)
+
+Modern macOS systems on Apple Silicon now offer practical mergerfs-style union/pooling filesystems without the need for low-level kernel extensions. Thanks to macFUSE 5.2.0's FSKit backend (released April 2026), tools like [rclone union](https://rclone.org/union/) and unionfs-fuse can be deployed fully in userspace, achieving policy-driven file placement and transparent access to files across multiple disks, with no compromise to system security. While mergerfs itself remains Linux-only, using a VM and network export is an option for legacy compatibility. Apple's own solutions (AppleRAID, SoftRAID) do not provide mergerfs's core guarantees (plain files on underlying disks), and OpenZFS offers redundancy but operates at the block level.
+
+**Key Tools & Findings:**
+- rclone union (with macFUSE 5.2+) offers placement policies nearly identical to mergerfs, in user mode.
+- unionfs-fuse is an alternative, though less flexible than mergerfs in policy options.
+- macFUSE 5.2.0 FSKit eliminates kernel extension requirements for FUSE filesystems on Apple Silicon.
+- Official mergerfs is not available for macOS—VM export is required for precise mergerfs semantics.
+- Native macOS pooling solutions do not satisfy mergerfs-style requirements for filesystem-level plain file access.
 
 ### [HRS HLX-090 Helix Compatibility with CH Precision Electronics](https://github.com/daftdoki/research/tree/main/hrs-helix-ch-precision-compatibility#readme) (2026-04-21 20:36)
 

@@ -1,5 +1,10 @@
 # mergerfs-style options on modern macOS (Apple Silicon)
 
+<!-- AI-GENERATED-NOTE -->
+> [!NOTE]
+> This is an AI-generated research report. All text and code in this report was created by an LLM (Large Language Model). For more information on how these reports are created, see the [main research repository](https://github.com/daftdoki/research).
+<!-- /AI-GENERATED-NOTE -->
+
 ## Question / Goal
 
 What are the realistic options in 2026 for getting
