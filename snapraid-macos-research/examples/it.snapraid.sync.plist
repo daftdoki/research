@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Nightly SnapRAID sync + scrub on macOS, fired at 03:30.
+  Save to: ~/Library/LaunchAgents/it.snapraid.sync.plist
+  Load:    launchctl bootstrap gui/$UID ~/Library/LaunchAgents/it.snapraid.sync.plist
+  Unload:  launchctl bootout gui/$UID ~/Library/LaunchAgents/it.snapraid.sync.plist
+  Status:  launchctl print gui/$UID/it.snapraid.sync
+
+  This runs the snapraid-mac.sh wrapper which calls snapraid diff/sync/scrub
+  with sensible defaults and posts macOS Notification Center alerts.
+  Alternatively, point ProgramArguments at snapraid-runner.py.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>it.snapraid.sync</string>
+
+    <!-- Path to a wrapper script. Adjust for your username and brew prefix. -->
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/bash</string>
+      <string>-l</string>
+      <string>/Users/YOU/snapraid/snapraid-mac.sh</string>
+    </array>
+
+    <!-- Make sure /opt/homebrew/bin (Apple Silicon) is on PATH. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>PATH</key>
+      <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- 03:30 every day. Use Weekday key to run on specific days only. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+      <key>Hour</key><integer>3</integer>
+      <key>Minute</key><integer>30</integer>
+    </dict>
+
+    <!-- If the Mac was asleep at 03:30, run when it wakes up. -->
+    <key>RunAtLoad</key><false/>
+
+    <!-- Logs. /tmp is cleared on reboot; switch to ~/Library/Logs for retention. -->
+    <key>StandardOutPath</key>
+    <string>/Users/YOU/Library/Logs/snapraid.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/YOU/Library/Logs/snapraid.err.log</string>
+
+    <!-- Keep the Mac awake for the duration of the run. -->
+    <key>ProcessType</key><string>Background</string>
+    <key>LowPriorityIO</key><true/>
+    <key>Nice</key><integer>10</integer>
+  </dict>
+</plist>
