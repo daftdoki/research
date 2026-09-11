@@ -26,8 +26,11 @@ Write the folder and nothing else.
 
 ## Steps
 
-**1. Branch.** `claude/<kebab-slug>` off main, before any file exists. The
-slug describes the topic, not the answer.
+**1. Settle the branch.** Already on a `claude/*` branch? Stay on it. A cloud
+session starts on one the platform created, and its push protection allows
+pushing only to that branch, so switching away strands the work. Otherwise
+create `claude/<kebab-slug>` off main before any file exists, with the slug
+describing the topic rather than the answer.
 
 **2. Open the folder and `notes.md`.** Name the folder for the topic, in
 lowercase kebab-case, matching the sibling folders. Append to `notes.md` as
