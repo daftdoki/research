@@ -1,4 +1,7 @@
 {
+  "enabledPlugins": {
+    "memory@dokidlc": true
+  },
   "permissions": {
     "allow": [
       "WebSearch",
