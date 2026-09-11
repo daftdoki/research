@@ -15,6 +15,9 @@ creator asked for or reviewed live in `docs/`, not here.
 <!-- generated below -->
 <!-- memory format 1, written by memory 85d0efa on 2026-09-11 -->
 
-Topics across 0 pages:
+Topics across 1 page:
 
-(no pages yet)
+- bash (1)
+- claude-code (1)
+- tooling (1)
+- worktree (1)
