@@ -6,4 +6,4 @@ When creating a pull request, always format the PR body so that the **first sect
 
 ## Memory <!-- memory -->
 
-`.memory/` holds what past sessions learned. A hook names matching pages when you are prompted; read them before you investigate. Search yourself before an install, a config change, or a design choice, and when the creator says "remember" or "did we". When something took more than one attempt, write it: `memory write`. A page you find wrong, fix or delete in the same turn. The `memory` skill has the rules.
+`.memory/` holds what past sessions learned. A hook names matching pages when you are prompted; read them before you investigate. Search yourself before an install, a config change, or a design choice, and when the creator says "remember" or "did we". When something took more than one attempt, write it: `memory write`. A page you find wrong, fix or delete in the same turn. The `memory` skill has the rules. The `memory` command is installed per machine rather than from this repo, so a cloud session has the `.memory/` pages to read but no command to search or write them; skip the memory steps there.

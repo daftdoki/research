@@ -4,13 +4,37 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
 permissions:
   contents: write
-  models: read
 
 jobs:
+  # Catches a research PR whose summarizer step was skipped. cog would fail on
+  # main otherwise, after the merge, which is a worse place to find out.
+  check-summaries:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Every research folder has a summary
+        run: |
+          missing=0
+          for d in */; do
+            case "$d" in _*) continue ;; esac
+            [ -f "${d}README.md" ] || continue
+            if [ ! -s "${d}_summary.md" ]; then
+              echo "::error::${d}_summary.md is missing or empty"
+              missing=1
+            fi
+          done
+          exit $missing
+
   update-readme:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
@@ -31,8 +55,6 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run cogapp to update README
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cog -r -P README.md
 
@@ -42,7 +64,6 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add README.md
           git add */README.md 2>/dev/null || true
-          git add */_summary.md 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else

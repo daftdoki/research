@@ -32,4 +32,4 @@ Your final commit should include just that folder and selected items from its co
 
 Do NOT include full copies of code that you fetched as part of your investigation. Your final commit should include only new files you created or diffs showing changes you made to existing code.
 
-Don't create a _summary.md file - these are added automatically after you commit your changes.
+Also commit a `_summary.md`. Hand the folder to the `summarizer` subagent and it writes the file; the root README index splices it in verbatim. It is a bare markdown fragment with no heading: one paragraph, then an optional short bullet list. A research folder without one fails CI.
