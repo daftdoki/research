@@ -1,0 +1,36 @@
+
+=== HOST 1 (macOS laptop): create the bare repo and commit a .gitconfig
+
+=== status on host 1 (note: Downloads/movie.mkv is invisible, as intended)
+## master...origin/master
+
+=== HOST 2 (Linux server): clone into a NON-empty $HOME
+checkout FAILED as expected; git said:
+    | error: The following untracked working tree files would be overwritten by checkout:
+    | 	.bashrc
+    | Please move or remove them before you switch branches.
+    | Aborting
+  -> you must back up/remove the conflicting files by hand first
+  -> checkout succeeded after moving .bashrc aside
+
+=== THE DIVERGENCE PROBLEM: the same file must differ per host
+
+=== back on host 1: pull the other host's commit
+MERGE CONFLICT, which is the whole problem:
+    | Auto-merging .bashrc
+    | CONFLICT (content): Merge conflict in .bashrc
+    | Automatic merge failed; fix conflicts and then commit the result.
+
+  .bashrc now contains conflict markers:
+    | <<<<<<< HEAD
+    | export PATH="/opt/homebrew/bin:$PATH"
+    | alias ll="ls -lG"
+    | =======
+    | export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+    | >>>>>>> origin/master
+
+  Nothing here is a mistake. Both edits are correct FOR THEIR HOST.
+  Plain git has no way to say 'this line is per-OS', so every sync
+  re-litigates it. That is the gap tools like chezmoi/yadm fill.
+
+=== sandbox left at /tmp/claude-0/-home-user-research/bfbcecf9-d5d1-50a9-9887-7fce86e9a9bf/scratchpad/sandbox

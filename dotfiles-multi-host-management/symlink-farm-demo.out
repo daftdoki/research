@@ -1,0 +1,31 @@
+
+=== mac-laptop: stow common + git + shell-darwin
+  links created:
+    .gitconfig -> $REPO/git/dot-gitconfig
+    .shrc -> $REPO/shell-common/dot-shrc
+    .shrc.common -> $REPO/shell-common/dot-shrc.common
+    .shrc.local -> $REPO/shell-darwin/dot-shrc.local
+  effective ~/.shrc after sourcing:
+    | set -o vi
+    | alias g=git
+    | export PATH="/opt/homebrew/bin:$PATH"
+
+=== linux-server: stow common + git + shell-linux
+  links created:
+    .gitconfig -> $REPO/git/dot-gitconfig
+    .shrc -> $REPO/shell-common/dot-shrc
+    .shrc.common -> $REPO/shell-common/dot-shrc.common
+    .shrc.local -> $REPO/shell-linux/dot-shrc.local
+  effective ~/.shrc after sourcing:
+    | set -o vi
+    | alias g=git
+    | export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+
+=== The same repo, no conflict, no templating engine.
+Every host commits and pulls the identical tree; divergence lives in
+WHICH packages a host stows, not in the contents of a shared file.
+Cost: the per-OS bits must be split into separate files up front, and
+the choice of packages per host is not itself version-controlled --
+you record it in a bootstrap script or type it on each new machine.
+
+=== sandbox left at /tmp/claude-0/-home-user-research/bfbcecf9-d5d1-50a9-9887-7fce86e9a9bf/scratchpad/sandbox2
