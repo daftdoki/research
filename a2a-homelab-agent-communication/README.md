@@ -62,7 +62,7 @@ From spec 1.0 ([source](https://github.com/a2aproject/A2A/blob/main/docs/specifi
 
 The 0.3 to 1.0 jump was breaking. Operation names changed (`message/send` became `SendMessage`), enum values went from `input-required` to `TASK_STATE_INPUT_REQUIRED`, the `kind` discriminator fields were removed, and `a2a.proto` became the normative source ([whats-new-v1](https://github.com/a2aproject/A2A/blob/main/docs/whats-new-v1.md)). Any blog post or bridge from 2025 targets the old wire format. Check the version before trusting anything.
 
-Official SDKs: Python (`a2a-sdk`), Go, JS (`@a2a-js/sdk`), Java, .NET, Rust ([README](https://github.com/a2aproject/A2A#readme)). The Python one implements all three bindings both directions at 1.0 with a 0.3 compat mode. Sample servers exist for ADK, LangGraph, CrewAI, AG2, Semantic Kernel, LlamaIndex, BeeAI, Marvin, and Azure AI Foundry ([a2a-samples](https://github.com/a2aproject/a2a-samples/tree/main/samples/python/agents)). Google's ADK ships `agent_to_a2a()` to serve any ADK agent and `RemoteA2aAgent` to call one as a sub-agent. [a2a-inspector](https://github.com/a2aproject/a2a-inspector) is a local web UI that fetches a card, validates it, and shows raw JSON-RPC traffic. Use it before pointing a real client at a new agent.
+Official SDKs: Python (`a2a-sdk`), Go, JS (`@a2a-js/sdk`), Java, .NET, Rust ([README](https://github.com/a2aproject/A2A#readme)). The Python one implements all three bindings both directions at 1.0 with a 0.3 compat mode. Sample servers exist for ADK, LangGraph, CrewAI, AG2, Semantic Kernel, LlamaIndex, BeeAI, Marvin, and Azure AI Foundry ([a2a-samples](https://github.com/a2aproject/a2a-samples/tree/main/samples/python/agents)). Google's ADK ships `to_a2a()` (in `google.adk.a2a.utils.agent_to_a2a`) to serve any ADK agent and a `RemoteA2aAgent` class to call one as a sub-agent. [a2a-inspector](https://github.com/a2aproject/a2a-inspector) is a local web UI that fetches a card, validates it, and shows raw JSON-RPC traffic. Use it before pointing a real client at a new agent.
 
 ### A2A next to MCP
 
@@ -159,7 +159,7 @@ So Aperture is on the model-provider side of every agent, not between agents. It
 
 **Auth is entirely Tailscale's job in this design.** That is fine for a homelab and it is what claude-a2a assumes. It also means the A2A layer is unauthenticated and the loopback bind is load-bearing. A wrapper started with `--host 0.0.0.0` on a machine with a second interface is an open shell.
 
-**Permission modes decide what "reachable" means.** Both wrappers run Claude with `acceptEdits` or a bearer-gated `bypassPermissions`. An A2A caller that can reach the agent can edit the vault. Scope the `cwd`, use `allowedTools`, and treat the ACL as the permission system.
+**Permission modes decide what "reachable" means.** claude-a2a defaults to `acceptEdits` and bridges any prompt that mode does not auto-allow to `input-required`. a2acode surfaces every permission request to the caller as `input-required`, including commands, and its `--auth-token-file` bearer gate is for the wire, not for permissions. Either way, an A2A caller that can reach the agent and answer "yes" can edit the vault. Scope the `cwd`, use `allowedTools`, and treat the ACL as the permission system.
 
 **Watch the MCP side.** With tasks in MCP 2026-07-28 and Claude Code negotiating that version, the gap A2A fills has narrowed to discovery, artifacts, and cross-vendor peers. If the homelab stays all-Claude, an MCP server with tasks may end up being the whole answer.
 

@@ -168,3 +168,9 @@ before writing anything about it.
   diagram, eight protocol patterns, Tailscale auth section with the
   tagged-node finding, Aperture, analysis. Dispatched the summarizer
   subagent for `_summary.md`.
+- Done-check corrections: read `agent_to_a2a.py` (function is `to_a2a`,
+  not `agent_to_a2a`) and confirmed `class RemoteA2aAgent(BaseAgent)`.
+  Re-read a2acode's README on permissions: every permission request goes
+  to the caller as `input-required`; there is no bypassPermissions mode.
+  Fixed both sentences in the README. `gh pr checks 24` reports no
+  checks on the branch.
