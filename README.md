@@ -131,7 +131,16 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 16 research projects
+## 17 research projects
+
+### [Which unslop and writing-for-agents to list in the dokidlc marketplace](https://github.com/daftdoki/research/tree/main/unslop-and-writing-for-agents-skills#readme) (2026-09-13 02:05)
+
+The best versions of both skills come from existing open-source lineages: unslop traces back to [pstack in cursor/plugins](https://github.com/cursor/plugins/tree/main/pstack/skills/unslop) (the most-copied unslop text on GitHub, 6.1k bytes, designed for always-on context), and writing-for-agents has exactly one upstream in [mattpocock/skills](https://github.com/mattpocock/skills) with 30 public copies: 15 identical, 4 stale, and 11 personal edits. Both should be vendored rather than referenced remotely, following the existing per-repo convention, enabling control over frontmatter and edits, and avoiding the overhead of cloning whole upstream repos on install. For unslop, vendor commit 99559f2 (what you run today) plus rules 32 and 33 from the latest upstream commit, letting you dodge a density pass that removed the "Adding soul" section but capture two real gaps (mannered prose and over-compression).
+
+Key findings:
+- The pstack unslop (28 live rules, no em dashes) outweighs 16k to 29k byte on-demand tools like humanizer or theclaymethod when imported globally, despite those tools being stronger at heavy rewrites.
+- The last upstream change to writing-for-agents was the em-dash removal on 2026-08-19, so pinning to current HEAD is safe.
+- Older copies of writing-for-agents in the wild are stale vendors with em dashes; personal edits don't improve the original.
 
 ### [Docker TUIs in 2026 and which one to install](https://github.com/daftdoki/research/tree/main/docker-tuis#readme) (2026-09-13 01:44)
 
