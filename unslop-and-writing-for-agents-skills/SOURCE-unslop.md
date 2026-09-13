@@ -3,7 +3,7 @@ Path: pstack/skills/unslop/SKILL.md
 Commit: 99559f2 (2026-08-02), plus rules 32 and 33 from e8d856f (2026-09-07)
 Pulled: 2026-09-12
 License: MIT (pstack/LICENSE, Lauren Tan)
-Lineage: Wikipedia "Signs of AI writing" -> blader/humanizer -> poteto/noodle -> cursor/plugins pstack
+Lineage: Wikipedia "Signs of AI writing", then blader/humanizer, then poteto/noodle, then cursor/plugins pstack
 
 Kept against upstream HEAD:
 - no `disable-model-invocation: true` (added upstream 73f8be4), so the agent

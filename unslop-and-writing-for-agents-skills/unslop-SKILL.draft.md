@@ -11,13 +11,13 @@ Edit text to remove AI patterns and add human voice.
 
 1. Scan for the patterns below.
 2. Rewrite. Preserve meaning, match intended tone.
-3. Add soul (see next section).
+3. Add soul (see "Adding soul" below).
 4. Self-audit: "What makes this obviously AI generated?" Fix remaining tells.
 
 ## Guards
 
 - Facts outrank every rule below: numbers, names, dates, URLs, quotes, units, code identifiers, scope words and negations survive a rewrite unchanged. Quoted text and the voice the user asked for come next. Only then the anti-slop rules.
-- Do not overcorrect into anti-slop register. Staccato closers, "Not X. Y." fragments and forced bluntness are tells too. One instance of a pattern may stand; repetition is the failure.
+- Do not overcorrect into anti-slop register. Staccato closers, "Not X. Y." fragments and forced bluntness are tells too. The mechanical rules (13, 17, 18, 19) apply on sight. For the rest, one instance may stand; repetition is the failure.
 
 ## Adding soul
 

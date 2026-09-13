@@ -17,7 +17,7 @@ Nothing was installed. Every claim comes from a file or commit read through the 
 
 The reason the pstack text wins is the way you use it. Your global `CLAUDE.md` imports the skill body with `@`, so it sits in context on every turn. That rules out the other well-made candidates, which are 16k to 29k bytes and built as on-demand rewrite tools: [blader/humanizer](https://github.com/blader/humanizer) (47,337 stars, the ancestor of the pstack text), [theclaymethod/unslop](https://github.com/theclaymethod/unslop) (a slash-command product with presets and an eval suite), and [MohamedAbdallah-14/unslop](https://github.com/MohamedAbdallah-14/unslop). The pstack file is 6k bytes and is also, by the count in the results below, the most copied unslop text on GitHub. If you want a heavy `/humanizer` for the occasional long rewrite, humanizer ships its own `plugin.json` and can be listed with a plain `github` source next to it.
 
-**writing-for-agents: there is only one.** Every one of the 30 public copies I hashed descends from [mattpocock/skills](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents), and the local copy is byte-identical to upstream HEAD. Fifteen copies are exact, four are the stale pre-August version with em dashes, and the rest are personal edits, none of which improve on the original. Vendor it the same way, pinned to `3216582`, which is the current HEAD and the commit that removed the em dashes.
+**writing-for-agents: there is only one.** Every one of the 30 public copies I hashed descends from [mattpocock/skills](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents), and the local copy is byte-identical to the current upstream file. Fifteen copies are exact, four are the stale pre-August version with em dashes, and the rest are personal edits, none of which improve on the original. Vendor it the same way, pinned to `3216582`, the last commit that touched the skill (it removed the em dashes). Repo HEAD is later, but no later commit touches this directory.
 
 For additional and more detailed information see the [research notes](notes.md).
 
@@ -65,7 +65,7 @@ A code search for the soul section's first sentence, "Removing patterns is half 
 
 | Group | Copies | What they are |
 |---|---:|---|
-| Identical to mattpocock/skills HEAD `3216582` | 15 | Straight vendors |
+| Identical to mattpocock/skills at `3216582`, the last commit to the skill | 15 | Straight vendors |
 | Pre-2026-08-19 upstream (em dashes intact) | 4 | Stale vendors |
 | Personal edits | 11 | Punctuation tweaks, a "Cross-Client Portability" appendix, a version that replaces the leading-word section with a blander paragraph, and three 2k to 4k condensations |
 
@@ -84,7 +84,7 @@ Two things the pstack text lacks are worth one line each in the vendored copy, b
 Three states are on the table.
 
 - `99559f2` is what runs today. Soul section, 31 rules, model-invoked.
-- HEAD (`e8d856f`) has the author's density pass. The five deleted rules are Wikipedia-article tells (name-dropping media outlets, "nestled", "must-visit", "despite challenges... continues to thrive") that rarely show up in engineering text, so losing them costs little. The two added rules fill real gaps in the older version. Rule 32 catches the aphorisms and personified code that a model reaches for once the obvious words are banned, and rule 33 catches the opposite failure, arrow-and-fragment shorthand that reads like notes. But the soul section is gone, and it is the part that keeps a report from reading like a sterile checklist.
+- `e8d856f`, the last commit to the skill, has the author's density pass. The five deleted rules are Wikipedia-article tells (name-dropping media outlets, "nestled", "must-visit", "despite challenges... continues to thrive") that rarely show up in engineering text, so losing them costs little. The two added rules fill real gaps in the older version. Rule 32 catches the aphorisms and personified code that a model reaches for once the obvious words are banned, and rule 33 catches the opposite failure, arrow-and-fragment shorthand that reads like notes. But the soul section is gone, and it is the part that keeps a report from reading like a sterile checklist.
 - The vendored draft: `99559f2` plus rules 32 and 33 and the two guards, without `disable-model-invocation`. That is the recommendation.
 
 ### Vendor, don't point at upstream
