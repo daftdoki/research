@@ -131,7 +131,15 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 17 research projects
+## 18 research projects
+
+### [A2A for agents on different homelab hosts](https://github.com/daftdoki/research/tree/main/a2a-homelab-agent-communication#readme) (2026-09-13 02:25)
+
+A2A is a small HTTP protocol for agents to hand tasks to each other and get back status, artifacts, and follow-up questions, but nothing in Claude Code or the Claude Agent SDK implements it. For a homelab on Tailscale, the choice is between three approaches: Claude Code's built-in cross-session messaging, an A2A wrapper, or an MCP server. A2A earns its extra process when the remote side reasons, runs multiple turns, needs to ask the caller questions mid-task, or produces files as results. The [A2A spec](https://github.com/a2aproject/A2A) has been stable since March 2026, though wrappers like [claude-a2a](https://github.com/ericabouaf/claude-a2a) are one-person projects with under 15 stars each. Requests from a tagged Tailscale node arrive with no identity headers, and claude-a2a gates on exactly those headers.
+
+- Cross-session messaging is text-only and routes through Anthropic servers; A2A and MCP stay entirely on the tailnet
+- A2A carries tasks with states, streamed status, file and JSON artifacts, and input-required round trips; MCP gets long-running work through the 2026-07-28 tasks extension
+- Before building A2A, ask whether the remote side is an agent or a tool; if a tool, a simple MCP server behind `tailscale serve` needs no bridge
 
 ### [Which unslop and writing-for-agents to list in the dokidlc marketplace](https://github.com/daftdoki/research/tree/main/unslop-and-writing-for-agents-skills#readme) (2026-09-13 02:05)
 
