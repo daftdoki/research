@@ -13,14 +13,16 @@ Pages here are what this agent learned on its own. Search with
 creator asked for or reviewed live in `docs/`, not here.
 
 <!-- generated below -->
-<!-- memory format 1, written by memory 85d0efa on 2026-09-11 -->
+<!-- memory format 1, written by memory 85d0efa on 2026-09-13 -->
 
-Topics across 2 pages:
+Topics across 3 pages:
 
 - bash (1)
 - ci (1)
 - claude-code (1)
 - cogapp (1)
+- gh (1)
+- git (1)
 - subagents (1)
 - summaries (1)
 - tooling (1)
