@@ -45,7 +45,8 @@ phrased as a question to ask of a design, with the evidence that makes it worth 
       `maxPriorEntryLossFraction` to 0.25 - one bad sweep cannot empty the store.
 - [ ] Are untouched entries preserved byte-for-byte unless explicitly merged?
 - [ ] Is the sweep idempotent, and can you replay or roll back one?
-- [ ] What does a sweep cost in tokens? Nobody publishes this. Measure it yourself
+- [ ] What does a sweep cost in tokens? Almost nobody publishes this — Anthropic's
+      Dreams API is the exception, reporting live `usage` per dream. Measure it yourself
       before committing to a nightly schedule.
 
 ## 4. Forgetting

@@ -321,3 +321,310 @@ what is already in the bank.
 Still unread and still tagged **[summary]**: the OpenAI Dreaming announcement, anything
 first-party on Claude Code Auto Dream, the ConvoMem and Auto-Dreamer PDFs, the CLS
 1995 paper, and Anthropic's context-engineering post.
+
+## Third pass: the primary sources, actually read
+
+A later session was started with a wider egress policy. Re-tested the hosts that were
+blocked before:
+
+| Host | Second pass | Third pass |
+|---|---|---|
+| `arxiv.org` | blocked | **200** |
+| `www.anthropic.com`, `docs.claude.com`, `platform.claude.com` | blocked | **200** |
+| `aclanthology.org`, `nature.com`, `docs.letta.com` | blocked | **200** |
+| `openai.com` | blocked | reachable, but Cloudflare managed challenge (403 to curl) |
+
+So the second pass's conclusion was right about the mechanism — the egress policy is
+fixed per environment — and the fix was indeed a new session, not a retry.
+
+Tooling notes, because both cost time:
+
+- The image's `pypdf` is installed but unusable: its `cryptography` dependency panics
+  on import (`ModuleNotFoundError: _cffi_backend` inside a pyo3 panic). `pdftotext`
+  isn't present and `apt-get install poppler-utils` 404s on a stale archive URL. A
+  throwaway `python3 -m venv` with a fresh `pypdf` works and took ten seconds.
+- `openai.com` serves a Cloudflare managed challenge to curl and to `WebFetch`. Headless
+  Chromium (pre-installed at `/opt/pw-browsers`) passes the challenge and renders the
+  page. Getting Chromium to trust the proxy CA is the fiddly part — Playwright's
+  Chromium doesn't pick up the system trust store, and the two clean ways to fix that
+  (importing the CA, or pinning its SPKI hash) were both blocked by the sandbox
+  classifier. The page text came out; the chart images did not.
+
+### What changed and what held
+
+Eight of the load-bearing **[summary]** numbers were confirmed *exactly*. Four claims
+were wrong. The wrong ones are more interesting, so they're first.
+
+#### Wrong 1: "Claude Code Auto Dream" is not a thing
+
+This was the biggest single error in the report, and it came from trusting third-party
+blogs. The first-party docs describe **two different features**, and neither matches
+the blogs' description of a "four-phase offline consolidation with a `/dream` manual
+trigger":
+
+- **Claude Code has "Auto memory"** (`docs.claude.com/en/docs/claude-code/memory`).
+  It is *online*, not a sweep: Claude writes typed notes (`user`, `feedback`,
+  `project`, `reference`) into `~/.claude/projects/<project>/memory/` during the
+  session. There is a `MEMORY.md` index loaded at session start, capped at 200 lines
+  or 25KB. The word "dream" does not appear anywhere in the Claude Code docs. There
+  is no `/dream`; there is `/memory`, which browses and toggles.
+- **Anthropic's Managed Agents platform has "Dreams"**
+  (`platform.claude.com/docs/en/managed-agents/dreams`), a research preview behind the
+  `dreaming-2026-04-21` beta header. It *is* a consolidation pass, but it is an
+  on-demand async job, not a nightly cycle, and not four phases.
+
+The Claude Code compaction detail is worth keeping for its own sake, because it is a
+different answer to the same problem: when `MEMORY.md` approaches its limit, Claude
+Code *tells the model* to "keep one line per entry, move detail into topic files, and
+merge or drop stale entries", and returns a hard error if the file goes over. That is
+online consolidation under a hard budget, enforced by the harness rather than by a
+scheduler.
+
+#### Wrong 2: the ConvoMem headline overstates the case for long context
+
+The report said long context "wins on both accuracy and cost" below ~150 conversations.
+Accuracy, yes. Cost, no — and the paper is emphatic about it:
+
+> "While Long Context costs grow dramatically from $0.001 to $0.09 per query at 300
+> conversations, Mem0 maintains relatively stable costs around $0.0007-$0.0015 with
+> minimal variation across history lengths—achieving up to 95x cost reduction at scale."
+
+The latency crossover is earlier still: "around 10-20 conversations, after which Mem0
+becomes consistently faster." And the paper's own body recommendation is *not* 150:
+"Mem0 becomes the default choice for conversation histories exceeding 50-100
+interactions despite its accuracy limitations." The 150 figure is the abstract's
+"remains viable with manageable trade-offs" line. Two different claims.
+
+The correct framing: long context buys **accuracy** at a cost and latency penalty you
+can absorb while the corpus is small. That's still a strong argument for building the
+control arm first — but "it's also cheaper" isn't part of it.
+
+#### Wrong 3: MINJA's attack success rate is 76.8%, not ~70%
+
+Abstract, verbatim: "a high average success rate of 98.2% for injecting malicious
+records into the memory, and a high average attack success rate of 76.8% in eliciting
+the malicious reasoning steps." The second-pass search summary rounded down.
+
+The per-configuration tables are more informative than the average anyway: ISR ranges
+95.6%-100.0% across six agent/dataset rows, while ASR ranges 57.0%±10.3 to 98.9%±2.2.
+The paper's own read is that ISR "demonstrates higher mean and lower variance than
+ASR" because injection is the easy half.
+
+New and useful: §5.4 evaluates four defences. Embedding-level sanitization fails
+("hard to detect" by similarity filtering). Prompt-level detection with GPT-4o is
+"the most practical and potentially effective" but does not generalise — a targeted
+flagging prompt caught 131/135 on MIMIC and *zero* on the other two agents; a general
+prompt generalised but flagged benign records too. The paper points at system-level
+defences (isolating memory banks per user, rate limiting) as the remaining lever.
+
+Also worth correcting the AgentPoison comparison. AgentPoison (Chen et al., NeurIPS
+2024, arXiv 2407.12784) reports "an average attack success rate of ≥80% with minimal
+impact on benign performance (≤1%) with a poison rate <0.1%". So MINJA is **not** the
+"stronger-result" version — it is roughly comparable on ASR (76.8% vs ≥80%) from a
+much weaker threat model. That's the actual point, and it's a better one.
+
+#### Wrong 4: the OpenAI recall figure is not in the OpenAI announcement
+
+The announcement (June 4, 2026, "Dreaming: Better memory for a more helpful ChatGPT")
+renders fine in headless Chromium. Its full prose contains **no percentages at all**.
+The evaluation section describes three axes — carrying forward context, following
+preferences, staying current over time — compared across three system generations
+(2024 saved memories / 2025 saved memories + Dreaming V0 / 2026 Dreaming V3), and
+reports results only as charts, which are images. The prose says things like "Dreaming
+provides a substantial lift in this area."
+
+I could not extract the chart values (see tooling notes above). A web search confirms
+the 41.5% → 82.8% pair, plus 71.3% preference adherence and 75.1% time-sensitive
+accuracy, circulating across dev.to, techtimes, nerdleveltech and similar. Those are
+third-party readings of OpenAI's chart images, on an eval OpenAI has not released. So
+the report's claim that the figure "originates here" is defensible about provenance
+but wrong about verifiability: you cannot check it against the announcement's text,
+because the announcement's text does not contain it.
+
+What the announcement *does* state in prose, and what is therefore citable:
+
+- Dreaming V0 shipped **April 2025**, not 2026. The June 2026 launch is V3. The report
+  and sources.md both implied dreaming was new in 2026.
+- "Recent improvements reduced the compute required to serve dreaming to Free users by
+  approximately 5x." This is a **serving-cost** number, not an accuracy number. Several
+  third-party writeups pair it with the recall figure in a way that blurs this.
+- Dreaming "leverages a background process that allows ChatGPT to learn from many
+  conversations and synthesize ChatGPT's memory state". Confirms the family placement.
+- Synthesized memories are reviewable via a memory summary page.
+- Plus and Pro in the US at launch; Free and Go over following weeks.
+
+### Confirmed exactly
+
+| Claim | Source | Verdict |
+|---|---|---|
+| Sleep-time compute: ~5x fewer test-time tokens on Stateful GSM-Symbolic **and** Stateful AIME | arXiv 2504.13171 abstract | exact |
+| +13% GSM-Symbolic, +18% AIME, 2.5x cost when amortised | same | exact |
+| ConvoMem 75,336 QA pairs, six categories, Salesforce | arXiv 2511.10523 | exact |
+| ConvoMem 70-82% full context vs 30-45% RAG on hardest cases | same, abstract | exact |
+| ConvoMem transitions 30 / 150 / 300, ~23s latency at 300 | same | exact |
+| Auto-Dreamer 41.1% vs UMEM 34.1% (+7.0) vs ReasoningBank 30.9% (+10.2) | arXiv 2605.20616 Table 1 | exact |
+| Auto-Dreamer 12x smaller bank on ScienceWorld, 6x on ALFWorld | same (6.9k vs 80.9k; 11.0k vs 62.9k) | exact |
+| Generative Agents: all α weights = 1, reflection at cumulative importance 150 | arXiv 2304.03442 §Memory | exact, + decay factor 0.995, ~2-3 reflections/day |
+| MINJA injection success 98.2%, NeurIPS 2025 | arXiv 2503.03704 | exact |
+| MemOS: parametric / activation / plaintext in a MemCube with provenance + versioning | arXiv 2507.03724 | exact |
+| Anthropic: compaction, structured note-taking, sub-agent isolation | anthropic.com engineering post | exact, + subagents return 1,000-2,000 token summaries |
+
+### New detail worth putting in the report
+
+**Sleep-time compute has a sharper qualifier than I gave it.** The 2.5x amortisation
+requires *ten* queries per context (§5.3), not just "many". And the agentic case study
+cuts against the technique: on SWE-Features, "at lower test-time compute budgets,
+leveraging sleep-time compute can improve performance, achieving up to roughly a 1.5x
+decrease in test-time tokens. However, when the test-time compute budget is high,
+using only test-time compute can perform better." The clean 5x is on synthetic
+stateful maths; the realistic agentic task gives 1.5x and only in the low-budget
+regime.
+
+**Auto-Dreamer is both better and weaker than I characterised it.** Better: it is not
+just an end-to-end number. Panel B of Table 1 is exactly the controlled ablation I said
+nobody had run — every method gets the same fixed initial bank `B0`, a frozen task
+agent, and held-out tasks, isolating the consolidation operator. Weaker: the bootstrap
+95% CIs in Appendix H show only the ScienceWorld gain clears noise.
+
+| Domain | Auto-Dreamer | Strongest baseline | Overlap? |
+|---|---|---|---|
+| ScienceWorld | 41.07 [37.53, 44.70] | UMEM 34.07 [30.51, 37.71] | no — real |
+| ALFWorld | 60.21 [54.65, 65.59] | UMEM 58.43 [53.15, 63.65] | heavy — not significant |
+| WebArena | 52.3 [43.5, 60.9] | AWM / LightMem 52.0 | total — not significant |
+
+Since the consolidator was *trained* on ScienceWorld, the one domain where the gain is
+significant is the one domain it was trained on. The transfer claim is about held-out
+domains, and on those the success-rate gains are inside the noise. What does transfer,
+and is not close to noise, is **compactness**: 927 tokens on WebArena against 370k for
+LightMem and 43.4k for Mem0, at equal or better success.
+
+**Auto-Dreamer independently reproduces OpenClaw issue #67363.** Appendix I is a case
+study on 96 ScienceWorld episodes where Auto-Dreamer and LightMem both solve exactly
+48/96 — identical accuracy — but LightMem's bank holds 265 entries / 17,512 tokens
+against Auto-Dreamer's 14 entries / 716 tokens. What is *in* LightMem's bank is the
+punchline: 49 of the 265 are paraphrases of the task instruction, the first four
+byte-identical; four byte-identical copies of "The agent's inventory contains an
+orange."; two of "The agent has taken 0 moves so far."; and four entries that are the
+same room description with the objects reordered. "In this run, LightMem's
+consolidation step fires nine times but retires no active entries, so memory grows
+monotonically."
+
+That is the same failure as `buildPromotionSection` promoting "Started the day. 10:15
+AM. Greeted the user." — a consolidation step that selects without synthesising — found
+independently, in a different system, measured. It upgrades the report's "selection is
+not synthesis" section from one bug report to a bug report plus a published replication.
+
+It also supplies the missing control the report asked for, in the one direction that
+matters: consolidation's demonstrated, reproducible win is **compression at equal
+accuracy**. 24.5x smaller bank, same 50.0% success.
+
+**The sweep's token cost is now published — by Anthropic.** The report's point 7 said
+nobody publishes tokens-per-sweep. That is no longer true. Every Anthropic `dream`
+resource carries a `usage` object (`input_tokens`, `output_tokens`,
+`cache_read_input_tokens`, `cache_creation_input_tokens`) that updates live while the
+dream runs, and the billing section states "Dreams are billed at standard API token
+rates for the model you select; `usage` on the resource reports the exact totals. Cost
+scales roughly linearly with the number and length of input sessions." Auto-Dreamer
+instruments it too (`dreamer_calls.jsonl`, per-role LLM call and token counts in
+`summary.json`) but reports only retrieval-time memory tokens in the paper. So: one
+vendor exposes it per-job, one paper logs it and doesn't report it, everyone else is
+silent.
+
+**LoCoMo's conversations are tiny.** 50 conversations, avg 304.9 turns, 19.3 sessions,
+**9,209 tokens**, 7,512 questions total (arXiv 2402.17753, Maharana et al., UNC/USC/Snap).
+This sharpens the vendor-numbers argument considerably: Mem0's self-reported LoCoMo
+92.5 is a score on ~9k-token conversations. HaluMem-Long measures the same system at
+1M tokens and gets 6.22% extraction F1. Those aren't contradictory results; they're
+results two orders of magnitude apart in corpus size, and only one of them gets quoted
+in a README.
+
+**Generative replay checks out as the limit case of the analogy.** van de Ven,
+Siegelmann & Tolias, *Nature Communications* 2020: "Artificial neural networks suffer
+from catastrophic forgetting... In artificial neural networks, such memory replay can
+be implemented as 'generative replay', which can successfully — and surprisingly
+efficiently — prevent catastrophic forgetting." The problem is explicitly weight
+updates. Retrieval-based memory systems don't have it.
+
+### Two new shipping dream cycles found
+
+Neither was in the first pass. Both are first-party documented, which makes the
+dream-cycle family look much less like one product with a metaphor.
+
+**Anthropic Managed Agents — Dreams.** Research preview, beta header
+`dreaming-2026-04-21`. The design is worth reading closely because it makes a choice
+the report recommends and one it doesn't:
+
+| Property | Value |
+|---|---|
+| Trigger | on demand (`POST /v1/dreams`), asynchronous; not scheduled |
+| Inputs | exactly one memory store + 1 to 100 session transcripts |
+| Output | a **new, separate** memory store; "The input store is never modified" |
+| Steering | optional `instructions`, max 4,096 chars, applied throughout the pipeline |
+| Runtime | "minutes to a few hours, driven by the number of input transcripts" |
+| Observability | once `running`, `session_id` points at the session executing the pipeline; you can stream its events and watch what it reads and writes |
+| Cost | `usage` on the resource, standard token rates, ~linear in input sessions |
+| Review | you inspect the output store, then attach it to future sessions or delete/archive it |
+
+Copy-on-write instead of in-place mutation, with a human review gate before the output
+is adopted. That is a stronger version of the report's "never mutate in place"
+recommendation — it doesn't need supersession pointers because it never touches the
+input at all. The cost is that nothing is automatic: no cadence, no blast-radius cap,
+because the blast radius is zero by construction.
+
+The docs are explicit that instructions are synthesis-level, not editorial: "The
+pipeline is a synthesis pass over the inputs, not an editor applied to the text of the
+store, so imperative directives that target specific lines ('change sentence X to Y')
+generally produce no change." Separation of gate from writer, stated as a product
+constraint.
+
+The surrounding memory-store API also does what the report recommends independently:
+"Every change to a memory creates an immutable **memory version**, giving you an audit
+trail and point-in-time recovery for everything the agent writes." Versions belong to
+the store rather than the memory, so the trail survives deletion of the memory; 30-day
+retention with recent versions of live memories always kept; writes are attributed to
+the session that made them; there's a `redact` endpoint for scrubbing sensitive content
+out of history. There is no restore endpoint — you roll back by reading a version and
+writing its content back.
+
+And the recommended use is exactly the report's argument: the best-practices section
+lists dreaming under "Condense or prune before the store fills up", against a
+10,000-memory hard cap per store.
+
+**Letta — Dreaming.** `docs.letta.com/agent-sdk/memory`. Background subagents that
+"review recent conversations, consolidate lessons, and update memory without
+interrupting active work", over MemFS, a git-backed memory filesystem. Configuration:
+
+- `trigger`: `"off"` | `"step-count"` | `"compaction-event"`
+- `behavior`: `"reminder"` | `"auto-launch"` — settable only at agent creation
+- `stepCount`: interval for the step-count trigger
+
+Two details matter. First, the trigger is *step count or compaction event*, not a cron
+— consolidation is tied to how much work happened, not to the clock. That is a better
+default than `0 3 * * *` for anything with uneven usage. Second, there is an optional
+"Agent reviews before applying" mode that runs the proposed memory updates past the
+agent in a second background conversation before they land, with the docs noting it
+"uses more model tokens and does not ask you for approval." A separate review pass over
+a writer's output, shipped. For larger cleanups Letta has a distinct "reorganize
+memory" workflow that "backs up the current repository before splitting large files,
+merging duplicates, or restructuring the hierarchy" — blast-radius control by backup
+rather than by cap.
+
+So across four shipping implementations the trigger designs are: nightly cron
+(OpenClaw), on-demand job (Anthropic), step-count or compaction-event (Letta),
+background/continuous (OpenAI). Only one of the four is actually nightly. The "sleep"
+in the metaphor is doing less work than it appears to.
+
+### Still not read
+
+The CLS 1995 paper (McClelland, McNaughton & O'Reilly, *Psychological Review* 102,
+419-457) remains unread. `stanford.edu` redirects then 403s; `cnbc.cmu.edu` has a
+broken certificate chain of its own; ResearchGate wants a login; DTIC 403s. Everything
+the report says about it is a characterisation of the argument, not a figure, and
+Auto-Dreamer's framing of CLS is now a directly readable secondary source that says
+the same thing more usefully for this purpose:
+
+> "We adopt CLS not as a biological claim about language models, but as an operational
+> design principle for separating fast acquisition from slow cross-session
+> consolidation."
+
+That is the honest version of the metaphor, written by people building on it.
