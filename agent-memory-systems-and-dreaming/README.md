@@ -73,7 +73,9 @@ blocks essentially every scholarly and vendor host:
 | `openai.com`, `www.anthropic.com`, `docs.letta.com`, `docs.openclaw.ai`, `dev.to` | blocked |
 
 `/root/.ccr/README.md` states that a proxy denial is an organisation egress policy
-decision to be reported rather than routed around, so no mirror was used. Primary
+decision to be reported rather than routed around, so no mirror was used. The policy is
+fixed when the environment is created and is not re-read mid-session: a later re-test of
+`arxiv.org`, `aclanthology.org` and `www.anthropic.com` returned the same denials. Primary
 reading was done against GitHub — repositories, `docs/` folders, issue threads — and
 supplemented by search-engine summaries for documents on blocked hosts.
 
@@ -144,9 +146,12 @@ score floor under structural facts like IPs and URLs.
 
 ### Sleep-time compute: the numbers **[summary]**
 
+Kevin Lin, Charlie Snell, Yu Wang, Charles Packer, Sarah Wooders, Ion Stoica and
+Joseph E. Gonzalez (Letta and UC Berkeley), arXiv 2504.13171.
+
 | Measure | Result |
 |---|---|
-| Test-time tokens for equal accuracy (Stateful GSM-Symbolic) | ~5x fewer |
+| Test-time tokens for equal accuracy (Stateful GSM-Symbolic *and* Stateful AIME) | ~5x fewer |
 | Accuracy gain from scaling sleep-time compute (Stateful GSM-Symbolic) | up to +13% |
 | Accuracy gain (Stateful AIME) | up to +18% |
 | Cost per query when amortised across related queries (Multi-Query GSM-Symbolic) | 2.5x lower |
@@ -182,6 +187,10 @@ HaluMem-Long — same memory points, ~1M tokens of context:
 Zep has no memory-extraction API, so extraction metrics are not applicable to it.
 
 ### ConvoMem: the control arm nobody runs **[summary]**
+
+75,336 question–answer pairs across six categories — user facts, assistant facts,
+abstention, preferences, changing facts, implicit connections. Dataset published by
+Salesforce.
 
 | Condition | Full context | RAG-based memory (incl. Mem0) |
 |---|---|---|
@@ -265,8 +274,11 @@ system's benchmark score does not transfer across corpus scale. A number measure
 
 ### Consolidation is an attack surface
 
-MINJA injects malicious records into an agent's long-term memory through ordinary
-queries alone — no privileged access, no direct store writes — at >95% success. Now add
+MINJA (Dong et al., NeurIPS 2025) injects malicious records into an agent's long-term
+memory through ordinary queries alone — no privileged access, no direct store writes.
+Two success rates are worth keeping separate: **injection** success — getting the record
+into the memory bank — averages 98.2%, while **attack** success — the poisoned record
+actually changing behaviour on a victim query — is around 70%. Now add
 a dream cycle. The sweep takes a transient poisoned record, notices it recurs, promotes
 it into the durable high-trust store, and summarises away the provenance that would
 have let you find it. Consolidation converts a transient compromise into a permanent
@@ -300,8 +312,11 @@ In rough priority order:
 
 No independent, apples-to-apples ablation was found showing that an offline
 consolidation pass beats an online summarisation pass at the same token budget.
-Auto-Dreamer comes closest — +7 points on ScienceWorld with a 12x smaller active
-memory bank — and it is a single preprint with self-reported numbers on a blocked host.
+Auto-Dreamer comes closest: 41.1% success on ScienceWorld against 34.1% for the
+strongest baseline (UMEM, +7.0 points) and 30.9% for the strongest prompted baseline
+(ReasoningBank, +10.2 points), with an active memory bank 12x smaller on ScienceWorld
+and 6x smaller on held-out ALFWorld. It is still a single preprint with self-reported
+numbers that I could not read directly.
 The honest position is that consolidation's demonstrated win is **compression**, and
 its effect on **recall** is asserted more often than measured.
 

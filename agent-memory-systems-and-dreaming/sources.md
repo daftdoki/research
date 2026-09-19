@@ -7,6 +7,11 @@ Access status matters here: this session's egress proxy allowed `github.com` and
 - **[summary]** — only the search engine's summary of the source was available; the
   underlying document is on a blocked host. Treat numbers as unverified.
 
+The sleep-time compute, ConvoMem, MINJA and Auto-Dreamer figures were re-queried from a
+second angle in a later pass and the independent result sets agreed; two gained detail
+that corrected the first reading (see `notes.md`). They remain **[summary]** — agreement
+between two search summaries is not the same as reading the paper.
+
 ## The "dreaming" thread
 
 | Source | Status | Why it matters |

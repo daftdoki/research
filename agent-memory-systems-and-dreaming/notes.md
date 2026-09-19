@@ -288,3 +288,36 @@ genuine generative-replay continual-learning work, which does touch weights.
    announcement I could not load.
 3. What does consolidation *cost*? Nobody publishes tokens-per-sweep. For a nightly
    sweep over a working set this is the number that decides whether it's viable.
+
+## Second pass: cross-verification after the access question came up
+
+The creator widened network access and asked me to retry. Re-tested `arxiv.org`
+(twice), `aclanthology.org` and `www.anthropic.com` — all still EGRESS_BLOCKED. The
+egress policy is snapshotted when the environment is created and is not re-read by a
+running session, so a widened policy needs a **new session** to take effect.
+
+What I could do instead: `WebSearch` runs server-side and is not subject to the proxy
+allowlist, so I re-queried each load-bearing **[summary]** claim from a different angle
+and checked the two independent result sets agreed. This is weaker than reading the
+PDF, but it catches the failure mode that actually bites — a single search summary
+mangling a number, which already happened once with the HaluMem table.
+
+Results of the cross-check — all four confirmed, three gained useful detail:
+
+| Claim | First pass | Second pass | Verdict |
+|---|---|---|---|
+| Sleep-time compute ~5x | "~5x on Stateful GSM-Symbolic" | ~5x on Stateful GSM-Symbolic **and** Stateful AIME | corrected — I had under-stated the scope |
+| Sleep-time +13% / +18% / 2.5x | same | same | confirmed; got full author list (Lin, Snell, Wang, Packer, Wooders, Stoica, Gonzalez) |
+| ConvoMem 70-82% vs 30-45%, <150 convs | same | same, + 75,336 QA pairs over six categories, Salesforce dataset | confirmed |
+| MINJA ">95%" | ">95% injection success" | 98.2% average **injection** success; ~70% **attack** success | refined — two different rates were being collapsed |
+| Auto-Dreamer +7 pts, 12x smaller | same | ScienceWorld 41.1% vs UMEM 34.1% (+7.0) and ReasoningBank 30.9% (+10.2); 12x smaller bank on ScienceWorld, 6x on ALFWorld | confirmed with specifics |
+
+The MINJA one matters for the report's argument. ">95% success" invites the reader to
+imagine a 95%-effective attack. The honest framing is that getting the poison *into*
+memory is nearly free (98.2%), and getting it to *fire* is harder but still common
+(~70%). The consolidation risk lives on the first number: a dream cycle operates on
+what is already in the bank.
+
+Still unread and still tagged **[summary]**: the OpenAI Dreaming announcement, anything
+first-party on Claude Code Auto Dream, the ConvoMem and Auto-Dreamer PDFs, the CLS
+1995 paper, and Anthropic's context-engineering post.
