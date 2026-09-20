@@ -131,7 +131,15 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 18 research projects
+## 19 research projects
+
+### [Agent Memory Systems and the "Dreaming" Turn](https://github.com/daftdoki/research/tree/main/agent-memory-systems-and-dreaming#readme) (2026-09-19 21:28)
+
+"Dreaming" in agent memory is actually three unrelated techniques: consolidation passes shipped by OpenClaw, Anthropic Managed Agents, Letta, and ChatGPT; inference precomputation that breaks even only at 10+ queries per context; and neuroscience metaphors misapplied since retrieval stores have no weights updating. Reading primary sources overturned three central claims now corrected: "Claude Code Auto Dream" does not exist, long context beats retrieval only on accuracy (not cost), and memory-update correctness is the field's bottleneck—even the best system scored 65% on [HaluMem](https://github.com/MemTensor/HaluMem). The practical design conclusion: measure your full-context baseline first, and if you build consolidation, adopt [OpenClaw's](https://github.com/openclaw/openclaw) read/stage/write separation or Anthropic's copy-on-write approach rather than attempting online edits.
+
+- Long context costs 95x more than Mem0 at scale but wins on accuracy up to ~150 conversations; the cost crossover occurs around 50–100 conversations per ConvoMem.
+- Memory-update correctness ranges from 1–65% across production systems, most scoring below 25%; this is where HaluMem revealed the field's core weakness.
+- Only OpenClaw's dream cycle is documented in detail; Anthropic's Dreams is on-demand (not nightly) and never mutates the input store, removing the update problem by construction.
 
 ### [A2A for agents on different homelab hosts](https://github.com/daftdoki/research/tree/main/a2a-homelab-agent-communication#readme) (2026-09-13 02:25)
 
