@@ -131,7 +131,15 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 19 research projects
+## 20 research projects
+
+### [Claude Code skills for writing a plain, short project README](https://github.com/daftdoki/research/tree/main/readme-writing-skills-for-claude-code#readme) (2026-09-20 04:58)
+
+To write natural-sounding READMEs in Claude Code, combine two complementary tools rather than searching for one all-in-one solution. The `readme` skill from [johnsyweb/agent-skills](https://github.com/johnsyweb/agent-skills/tree/main/readme) handles structure across all four core asks (what it is, install, use, develop) while keeping small projects lean through source-based inclusion. Pair it with `unslop` for general text cleanup and `docs-doc` from [immagiov4/my-codex-skills](https://github.com/immagiov4/my-codex-skills/tree/main/skills/docs-doc) to remove README-specific AI prose.
+
+- Most README skills are landing-page generators (badges, hero images); structural skills lack prose guidance
+- johnsyweb is the only small skill covering all four asks and development sections
+- Research includes a draft vendored skill combining johnsyweb's structure with README-specific anti-tells
 
 ### [Agent Memory Systems and the "Dreaming" Turn](https://github.com/daftdoki/research/tree/main/agent-memory-systems-and-dreaming#readme) (2026-09-19 21:28)
 
