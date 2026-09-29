@@ -30,3 +30,13 @@ Broad survey of agent isolation/sandboxing from homelab to small/medium deployme
   - Kata's 2026 advisories are mostly in host-side glue (pod annotations, virtiofsd, hotplug), not KVM.
   - Observability inverts with boundary strength: host eBPF sees everything for runc/Sysbox/LXC, gVisor needs its own runtime-monitoring stream, and VMs are opaque without an in-guest agent.
   - Leaving out gVisor "CVE-2026-96812" as a headline. It was published four days ago and I could find no vendor advisory or NVD analysis, only an OpenCVE entry plus a matching commit. I'll mention it only as unverified.
+- Track 1 (OS primitives) came back. Things I had wrong going in:
+  - I assumed Codex used Landlock on Linux. It now uses bwrap+seccomp by default and rejects the legacy Landlock mode, because Landlock cannot isolate app-server Unix sockets. Cursor is the tool that uses Landlock+seccomp.
+  - Gemini CLI's default macOS profile (`permissive-open`) allows reading any file and open network access. Its gVisor mode is the strongest built-in agent option.
+  - Landlock gained native audit records in ABI 7 (Linux 6.15). That is the first Linux sandbox primitive with first-class denial logging. Before that, bwrap/seccomp denials were effectively silent.
+- Synthesis decisions:
+  - Framed the report as a ladder of boundaries (policy → process → container → gVisor → VM, with language sandboxes as a side branch) plus three cross-cutting controls (egress, credentials, observability). Every source kept pointing out that the boundary alone does not stop exfiltration.
+  - The "observability inversion" (a stronger boundary gives less host visibility) became a central table.
+  - Copied the four source-annotated track files into `findings/` so every table row can be traced to a URL.
+  - Kept unverified items (gVisor CUSE CVE, SOCKS5 fix version, Landlock ABI 8+ kernels, E2B 150 ms, Kata boot numbers) flagged rather than dropped.
+  - Hedged the Docker Sandboxes-on-Linux recommendation, because its host OS support and hypervisor are not documented in what we read.

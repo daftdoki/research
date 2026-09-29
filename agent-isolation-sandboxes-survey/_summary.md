@@ -1,0 +1,8 @@
+Agent isolation is best understood as a ladder of boundaries (from policy-only through OS sandboxes to hardware VMs) plus three cross-cutting controls: network egress, credential brokering, and observability. The research covers 31 agent sandbox platforms and dozens of isolation primitives, with findings that most real escapes in 2025–2026 were policy-layer bugs and harness mistakes rather than kernel breaks, and that every built-in coding-agent sandbox shares the host kernel. For homelabs, disposable VMs with the agent's built-in sandbox plus egress allowlisting suffice; small teams should add a microVM per session and a TLS-intercepting proxy; medium deployments use Kubernetes with [kubernetes-sigs/agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox) on gVisor or Kata RuntimeClasses, with session-keyed observability across proxy, agent OTel, and kernel events.
+
+Key findings:
+
+- The isolation ladder has clear trade-offs: process sandboxes (bubblewrap, Landlock, Seatbelt) share the kernel and suffer policy bypasses; gVisor offers a strong boundary without KVM; hardware VMs (Firecracker, Kata) are opaque to host telemetry.
+- Real exfiltration paths use allowlisted domains (GitHub via MCP, `api.anthropic.com` with an attacker's key), DNS tunnels, and domain fronting—hostname-only filtering is insufficient.
+- Observability is the weakest ecosystem part: no platform offers native session replay; OTel export is rare; correlation requires joining proxy logs, agent spans, and kernel events on `session.id`.
+- Homelab and small-team deployments should default to per-agent or per-project disposable VMs with TLS-intercepting egress control outside the boundary.
