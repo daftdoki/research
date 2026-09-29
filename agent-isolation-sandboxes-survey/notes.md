@@ -40,3 +40,17 @@ Broad survey of agent isolation/sandboxing from homelab to small/medium deployme
   - Copied the four source-annotated track files into `findings/` so every table row can be traced to a URL.
   - Kept unverified items (gVisor CUSE CVE, SOCKS5 fix version, Landlock ABI 8+ kernels, E2B 150 ms, Kata boot numbers) flagged rather than dropped.
   - Hedged the Docker Sandboxes-on-Linux recommendation, because its host OS support and hypervisor are not documented in what we read.
+
+## Follow-up: NVIDIA OpenShell and similar frameworks
+
+- The user asked about NVIDIA's OpenShell and similar frameworks. I had not covered it in the first pass.
+- Sent a fifth research track, written to `findings/05-agent-runtimes-openshell-and-peers.md`. It read NVIDIA's docs as raw Markdown, CVE.org JSON and PyPI metadata. GitHub API metadata was unreachable.
+- What surprised me:
+  - OpenShell 0.1.0 shipped 2026-09-25 with breaking changes and removed the "privacy router" (`inference.local`) that was central to the GTC launch pitch.
+  - NemoClaw still pins 0.0.116, so the two NVIDIA stacks are currently on different lines.
+  - OpenShell's default isolation is Landlock+seccomp inside a container, the same shared-kernel tier as the coding-agent built-ins. Only the opt-in libkrun `vm` driver is a hardware boundary.
+  - Its observability (OCSF events with binary + destination + matching policy, exported as JSONL to a SIEM) is better than anything in the platform survey, but has no OTel. The gateway log buffer is in-memory only.
+  - Six CVEs were published 2026-08-25 for ≤0.0.33, including a 9.9 sandbox escape.
+  - Microsoft's Agent Governance Toolkit README says outright that it runs in the agent's process. It is tier-0 governance, not isolation.
+- Placed it in the report as section 3.3. It is framed as an integration layer over existing tiers, not a new tier.
+- Unverified: OpenClaw incident claims (from Cisco and press only), the "privacy router" naming (press release only), and Lasso gateway maintenance status.

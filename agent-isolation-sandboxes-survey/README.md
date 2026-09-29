@@ -36,6 +36,11 @@ Isolation for agents is best read as a **ladder of boundaries** plus **three cro
 
 - **Most real escapes in 2025–2026 were policy-layer bugs, not kernel or VM breaks.** Allowlist parsing, workspace config that the host later executes (hooks, `.git/config`, `.vscode` tasks), writable-root confusion, SOCKS hostname parsing, and an exposed Docker socket account for them. A stronger boundary helps only if the *host-side* harness also stays out of reach.
 - **Every built-in coding-agent sandbox shares the host kernel.** Anthropic's own docs point to a VM for untrusted repos.
+- **A new class of "sandbox + policy" agent runtimes appeared in 2026. NVIDIA OpenShell is the most complete.**
+  - It does not add a new boundary. Landlock and seccomp run inside a container, a Kubernetes pod, or an opt-in libkrun microVM.
+  - It does integrate the pieces: per-binary egress and HTTP rules, credential placeholders, a policy prover, and OCSF audit events for a SIEM.
+  - It is very young: 0.1.0 is four days old and breaking, and early versions had a 9.9 sandbox-escape CVE.
+  - Governance toolkits such as Microsoft's Agent Governance Toolkit and Cisco DefenseClaw are policy and logging layers that sit on top of a sandbox, not replacements for one.
 - **Homelab, one user:**
   - Run the agent's built-in sandbox with network allowlisting.
   - Put the whole agent in a disposable VM or microVM (Lima/Apple `container`/OrbStack-isolated on a Mac; Docker Sandboxes, Incus VM or a Proxmox VM on Linux).
@@ -44,7 +49,7 @@ Isolation for agents is best read as a **ladder of boundaries** plus **three cro
 - **Medium:** Kubernetes with `kubernetes-sigs/agent-sandbox` (or GKE Agent Sandbox) on gVisor or Kata RuntimeClasses. Add Cilium FQDN policy or an egress-proxy tier, GitHub App/Vault short-lived credentials, gVisor runtime monitoring into Falco, and a single OTLP pipeline keyed on session ID.
 - **Observability is the weakest part of the ecosystem.** No platform surveyed offers native session replay or filesystem diffs. OTel export is rare and often enterprise-only or experimental. You will assemble it yourself.
 
-For additional and more detailed information see the [research notes](notes.md) and the four source-annotated findings files in [`findings/`](findings/).
+For additional and more detailed information see the [research notes](notes.md) and the five source-annotated findings files in [`findings/`](findings/).
 
 ## Methodology
 
@@ -53,6 +58,7 @@ For additional and more detailed information see the [research notes](notes.md) 
   2. [Stronger isolation runtimes](findings/02-isolation-runtimes.md): gVisor, Kata, Firecracker, Cloud Hypervisor, libkrun, macOS options, Sysbox, Incus, full VMs, Wasm/isolates
   3. [Purpose-built agent sandbox platforms](findings/03-agent-sandbox-platforms.md): 31 self-hosted and hosted offerings
   4. [Egress, credentials, runtime and agent observability, escape history](findings/04-egress-credentials-observability.md)
+  5. [Agent runtimes that bundle a sandbox with a policy layer](findings/05-agent-runtimes-openshell-and-peers.md): NVIDIA OpenShell/NemoClaw, OpenClaw, NanoClaw, IronClaw, OneCLI, Microsoft AGT, Cisco DefenseClaw, Pipelock, agentsh, agentgateway, AWS AgentCore, Azure dynamic sessions. Added as a follow-up question.
 - Nothing was installed or benchmarked. Startup and overhead figures are vendor or paper claims and are labelled as such.
 - Items with only secondary sources are marked *(secondary)* or *(unverified)* in the tables below.
 
@@ -230,6 +236,77 @@ Details and sources: [findings 03](findings/03-agent-sandbox-platforms.md) Part 
 
 Details and sources: [findings 03](findings/03-agent-sandbox-platforms.md) Part B.
 
+#### 3.3 Agent runtimes that bundle a sandbox with a policy layer: NVIDIA OpenShell and peers
+
+This group arrived with the 2026 wave of always-on "claw" personal agents (OpenClaw and its descendants). These projects put an existing isolation boundary under a declarative policy that covers the agent's files, processes, network and credentials. Full detail: [findings 05](findings/05-agent-runtimes-openshell-and-peers.md).
+
+**NVIDIA OpenShell** ([repo](https://github.com/NVIDIA/OpenShell), Apache-2.0) was announced with NemoClaw at GTC on 2026-03-16 ([press release](https://investor.nvidia.com/news/press-release-details/2026/NVIDIA-Announces-NemoClaw-for-the-OpenClaw-Community/default.aspx)).
+
+- **Split trust.**
+  - A trusted **supervisor** outside the boundary makes every decision: it checks policy, holds credentials, resolves DNS and opens upstream connections.
+  - Inside the boundary, the agent runs as one non-root user with no capabilities. **Landlock** confines its files, and **seccomp user-notification** hands every connect and DNS lookup to the supervisor.
+  - If the supervisor channel drops, the agent is frozen ([architecture](https://docs.nvidia.com/openshell/latest/about/architecture.md)).
+- **The outer fence depends on the backend.**
+  - Docker/Podman: container with networking off.
+  - Kubernetes: pod plus NetworkPolicy; a Kata RuntimeClass can be enabled by an operator.
+  - **libkrun microVM** with no network device: the only hardware boundary, and it is "never auto-detected" ([runtimes](https://docs.nvidia.com/openshell/latest/how-it-works/sandboxes/runtimes.md)).
+  - Every backend needs Linux 6.2+ for Landlock ABI 3.
+- **Policy.**
+  - YAML, evaluated with OPA, deny by default.
+  - Network rules are keyed on host, port **and the calling binary**, with optional HTTP method/path rules.
+  - Filesystem and process sections are fixed at creation; network sections hot-reload.
+  - An admin **global policy** overrides everything.
+  - An optional **advisor** lets the agent *propose* new network rules only. An SMT **policy prover** blocks auto-approval of anything that adds credentialed reach or metadata access ([policies](https://docs.nvidia.com/openshell/latest/how-it-works/policies/overview.md), [prover](https://docs.nvidia.com/openshell/latest/how-it-works/policies/prover.md)).
+- **Egress and credentials.**
+  - TLS is terminated by default with a per-sandbox CA.
+  - Provider profiles bind a credential to hosts, paths and binaries; the agent sees a placeholder.
+  - Metadata-IP and DNS-rebinding protection are built in ([best practices](https://docs.nvidia.com/openshell/latest/security/best-practices.md)).
+  - The "privacy router" (`inference.local`) from the launch pitch was **removed in 0.1.0** ([upgrade guide](https://docs.nvidia.com/openshell/latest/upgrade/0-1-0.md)).
+- **Observability: the best in this group.**
+  - Every network, HTTP, process, filesystem-policy and config decision is an **OCSF v1.8.0** event with allow/deny, pid/binary and the matching policy.
+  - Events stream to a CLI or TUI and export as OCSF JSONL for Splunk, Security Lake or CrowdStrike ([logging](https://docs.nvidia.com/openshell/latest/observability/logging.md)).
+  - Gaps: no OpenTelemetry export is documented; the gateway buffer is in-memory only and drops events rather than blocking ([accessing logs](https://docs.nvidia.com/openshell/latest/observability/accessing-logs.md)).
+  - The full logs sit inside the sandbox, so ship them off-box *(my inference)*.
+- **Maturity.**
+  - 0.1.0 shipped 2026-09-25 with **no in-place upgrade** from 0.0.x ([PyPI](https://pypi.org/pypi/openshell/json)).
+  - Six CVEs were published 2026-08-25 for versions ≤0.0.33, including a 9.9 sandbox escape (CVE-2026-65093) and an L7-policy path-traversal bypass (CVE-2026-65092) ([CVE.org](https://cveawg.mitre.org/api/cve/CVE-2026-65093)).
+
+**NVIDIA NemoClaw** ([repo](https://github.com/NVIDIA/NemoClaw), Apache-2.0, "alpha") is a reference stack that runs **the whole agent** inside OpenShell.
+
+- Supported agents: OpenClaw, Hermes and LangChain Deep Agents.
+- Hardening over plain OpenShell: stricter policies, compilers and netcat stripped from the image, read-only system dirs, host-secret filtering, and digest-verified blueprints ([ecosystem](https://docs.nvidia.com/nemoclaw/latest/about/ecosystem.md)).
+- Tested on DGX Spark.
+- It still **pins OpenShell 0.0.116** ([blueprint.yaml](https://raw.githubusercontent.com/NVIDIA/NemoClaw/main/nemoclaw-blueprint/blueprint.yaml)), so expect a migration.
+
+**Peers**, grouped by what actually provides isolation:
+
+| Project | Real boundary | Policy layer | Egress / credentials | Observability | License / status |
+|---|---|---|---|---|---|
+| **NVIDIA OpenShell** | Landlock+seccomp in container / pod / libkrun microVM | YAML + OPA, per-binary L7 rules, SMT prover, admin global policy | TLS MITM, placeholder creds per host/path/binary | **OCSF events → SIEM**; no OTel | Apache-2.0, 0.1.2 (4 days old) |
+| NVIDIA NemoClaw | OpenShell 0.0.116 (containers) | Stricter blueprint policies | Host-secret filtering, providers | Inherits OpenShell | Apache-2.0, alpha |
+| OpenClaw built-in | **Tools only**, off by default (Docker `network:none`, cap-drop ALL); gateway stays on host | JSON5 modes/scopes; `tools.elevated` escape hatch | n/a | `openclaw sandbox explain` | MIT; "not a perfect security boundary" ([docs](https://docs.openclaw.ai/gateway/sandboxing.md)) |
+| NanoClaw | Docker container per agent group | Code + config | Credential gateway (OneCLI Agent Vault) | Minimal | MIT |
+| IronClaw (NEAR AI) | WASM for tools; Docker for jobs | Capability grants, endpoint allowlist | Host-boundary injection + leak scanning | Tool-execution audit log, web UI | MIT/Apache-2.0 |
+| OneCLI | Docker per person (other backends planned) | Workspace policy + grants | Rust MITM gateway, Bitwarden/1Password | Dashboard | Apache-2.0 |
+| Microsoft Agent Governance Toolkit | **None**: "policy engine and agents share the same process boundary" ([README](https://github.com/microsoft/agent-governance-toolkit)) | YAML / OPA / Cedar per tool call | Identity (SPIFFE/mTLS), MCP gateway | Merkle tamper-evident audit log | MIT, public preview |
+| Cisco DefenseClaw | None; designed to sit **on top of OpenShell** | Scan skills/MCP/code before run; hooks in log/block/HITL modes | Go gateway | **Splunk, OTLP, JSONL**, mandatory local SQLite | Apache-2.0 |
+| Pipelock | Optional Landlock + netns (+seccomp), macOS Seatbelt | YAML strict/balanced/audit | DLP/SSRF/MCP-scanning proxy | Signed action receipts, Prometheus | Apache-2.0 source, paid binaries |
+| agentsh | seccomp-notify / Landlock / FUSE / eBPF under the agent | allow/deny/approve/redirect/soft-delete | Service rules, DNS redirect | Structured audit events | Apache-2.0 |
+| agentgateway (LF) | None (proxy) | CEL RBAC over MCP/A2A/LLM | OAuth/JWT | **OpenTelemetry**, UI | Apache-2.0 |
+| AWS AgentCore Runtime | **microVM per session**, memory sanitized after | IAM | IAM | CloudWatch, OTel-compatible | hosted, GA |
+| Azure Container Apps dynamic sessions | **Hyper-V** per session | Pool config, Entra RBAC | Egress blocked by default | Azure Monitor | hosted, GA |
+
+**What this means for the ladder:**
+
+- OpenShell is not a new isolation tier. On its default backends it is a tier-1 process sandbox inside a tier-2 container, and only the `vm` driver reaches tier 4 (with libkrun's shared-security-context caveat).
+- What is new is the **integration**. It is the only self-hostable project found that combines, in one piece:
+  - a kernel-enforced boundary;
+  - per-binary egress and L7 policy;
+  - credential placeholders;
+  - a policy prover;
+  - SIEM-grade decision logs.
+- The governance toolkits (Microsoft AGT, DefenseClaw, agentgateway, the MCP gateways) are **tier-0 policy plus observation layers**. They complement a sandbox and do not replace one; AGT's README says so.
+
 ### 4. Network egress control
 
 | Approach | Granularity | Stops domain fronting? | Stops DNS exfil? | Logs | Fits |
@@ -269,7 +346,8 @@ Sources: [findings 04](findings/04-egress-credentials-observability.md) §2.
 | Layer | What it tells you | Tools | Survives strong isolation? |
 |---|---|---|---|
 | Agent / intent | prompts, tool calls, approval decisions, cost | Claude Code OTel (`claude_code.tool_decision`, `tool_result`; beta traces), Codex `[otel]` (`codex.tool_decision`), OpenHands OTel, hooks (`PreToolUse` with `tool_use_id`), JSONL transcripts; OTel GenAI semconv (`invoke_agent`, `execute_tool`, still *Development* status) → Langfuse / Phoenix | yes (runs outside or reports out) |
-| Tool gateway | MCP calls | Docker MCP Gateway `--log-calls`, Leash, Coder AI Gateway | yes |
+| Tool gateway | MCP calls | Docker MCP Gateway `--log-calls`, Leash, Coder AI Gateway, agentgateway (OTel), DefenseClaw (Splunk/OTLP) | yes |
+| Policy runtime | every allow/deny decision with binary, destination and matching rule | **NVIDIA OpenShell OCSF events** (NET/HTTP/PROC/CONFIG) → JSONL for a SIEM | yes (supervisor sits outside the boundary) |
 | Egress proxy | every outbound connection or request | Smokescreen, mitmproxy, `coder/boundary`, `sbx policy log`, Vercel `forwardURL`, Cloudflare outbound handlers | **yes: the best single chokepoint** |
 | Sandbox policy | denied FS/network actions | Seatbelt unified log, `srt` violation store, Landlock audit (6.15+), seccomp `LOG`, AppArmor/SELinux audit | inside process sandboxes only |
 | Host kernel (eBPF/audit) | every syscall, exec, file, socket | Falco (detect; Talon to respond), Tetragon (detect **and enforce**), Tracee, auditd, osquery | shared-kernel only; gVisor via Runtime Monitoring; **blind inside VMs** |
@@ -307,6 +385,7 @@ Under Confidential Containers the host is *deliberately* locked out. This follow
 | Layer | Examples | Lesson |
 |---|---|---|
 | Agent policy / harness | Claude Code CVE-2025-54794, -54795, -58764, -64755, CVE-2026-25725, -55607; Codex CVE-2025-59532, GitPwned; Gemini CLI allowlist abuse; Cursor CVE-2026-48124; Pillar July 2026 cross-vendor set | **The most frequent failure.** Anything the host later executes (hooks, `.git/config`, IDE tasks, venvs) is attack surface: keep it read-only or run the whole harness inside the boundary |
+| Sandbox + policy runtime | NVIDIA OpenShell ≤0.0.33: CVE-2026-65093 sandbox escape (9.9), CVE-2026-65092 L7 policy path-traversal bypass | New integrated runtimes carry fresh bugs; track versions closely |
 | Agent network proxy | srt CVE-2025-66479 (empty allowlist = no enforcement); SOCKS5 null byte *(secondary)* | Add a second, independent egress control below the agent |
 | Container runtime | runc CVE-2024-21626; CVE-2025-31133 / 52565 / 52881 (LSM bypass) | Rootless / userns; never let the agent build or run images against the host daemon |
 | GPU toolkit | NVIDIA CVE-2024-0132, CVE-2025-23266 | Crafted images escape; keep untrusted agents off GPU hosts or use CDI mode and patched toolkits |
@@ -342,6 +421,13 @@ Sources: [findings 04](findings/04-egress-credentials-observability.md) §6 and 
   - Agent OTel, proxy logs and the VM's git diff are enough.
   - If you want kernel visibility, run the agent in a container under gVisor inside the VM. That needs no nested virtualisation, and Falco can consume its stream.
 
+**Option B′, an always-on "claw" or an integrated policy runtime:**
+
+- NemoClaw on OpenShell is the most complete packaged option for OpenClaw/Hermes. It is alpha and pinned to OpenShell 0.0.116, so run it on a dedicated box or VM.
+- For coding agents, OpenShell 0.1.x with the `vm` (libkrun) driver on a KVM host gives a microVM plus per-binary egress policy, credential placeholders and OCSF logs in one tool.
+- Ship the OCSF JSONL off the box, and expect breaking changes.
+- Avoid OpenClaw's own sandbox as the only layer. It is off by default, covers tools only, and leaves the gateway on the host.
+
 **Option C, many short-lived runs:** microsandbox, smolvm or single-node E2B Embed on a KVM host. Remember libkrun's shared-security-context caveat, and that E2B calls Embed an evaluation package.
 
 ### Small team: 2–20 people, tens of concurrent agents
@@ -349,6 +435,7 @@ Sources: [findings 04](findings/04-egress-credentials-observability.md) §6 and 
 - **Boundary:** a microVM or gVisor per agent session. Self-host options are E2B, OpenSandbox, Coder workspaces on Kata/Sysbox, or Docker Sandboxes on each developer machine. Hosted options are Vercel, Cloudflare, E2B, Modal, Runloop and similar; prefer those that keep secrets out of the sandbox.
 - **Egress:** a central TLS-intercepting allowlist proxy (mitmproxy, Smokescreen, `coder/boundary`, or Cloudflare/Vercel programmable egress) with per-session identity. Log every request. Block metadata and private ranges.
 - **Credentials:** placeholder injection at the proxy; a GitHub App with 1-hour tokens; Vault for databases and cloud.
+- **Integrated option:** a shared OpenShell gateway with an admin **global policy**, run through the prover in CI, gives one policy and audit plane across agents. Cisco DefenseClaw adds pre-run scanning of skills and MCP servers on top. Weigh this against OpenShell's youth.
 - **Governance:** managed settings for the agent harness (`allowManagedHooksOnly`, admin-pinned sandbox config). Run MCP servers through a gateway (Docker MCP Gateway, Leash) so tool calls are logged and contained.
 - **Observability:** agent OTel → Langfuse/Phoenix; proxy logs → the same backend or Loki; join on `session.id`.
 
@@ -375,6 +462,7 @@ Sources: [findings 04](findings/04-egress-credentials-observability.md) §6 and 
   - Wasm cannot run a toolchain.
   - Nested virtualisation is needed for Firecracker/Kata inside cloud VMs. EC2 added it for C8i/M8i/R8i in February 2026.
 - **The boundary does not fix the trifecta.** A perfect VM with an allowlist containing `github.com` and a write-scoped token can still leak the repo. Scope credentials and inspect requests.
+- **Integration vs maturity.** OpenShell-style runtimes remove a lot of glue work, but they are months old. A 0.1.0 breaking release with no upgrade path, and a batch of critical CVEs in August 2026, argue for pinning versions and keeping an independent egress control underneath.
 - **Licensing and project churn.** Daytona went closed source in June 2026; mcp-run-python was archived; many 2025–26 tools are beta or pre-1.0. Prefer primitives with long histories (gVisor, Firecracker, Kata, bubblewrap) for anything you'll maintain.
 - **Unverified items.** The gVisor CUSE CVE, Claude Code's SOCKS5 null-byte fix version, Landlock ABI 8+ kernel versions, E2B's ~150 ms boot figure and Kata/Cloud Hypervisor boot numbers have only secondary sources. They are flagged in the findings files.
 
@@ -387,6 +475,7 @@ Sources: [findings 04](findings/04-egress-credentials-observability.md) §6 and 
 - `findings/02-isolation-runtimes.md`: gVisor, Kata/CoCo, Firecracker, Cloud Hypervisor, libkrun/smolvm/Hyperlight, macOS options, Sysbox/ECI, Incus, full VMs, Wasm/isolates, unikernels; observability inside vs outside.
 - `findings/03-agent-sandbox-platforms.md`: 31 self-hosted and hosted agent sandbox platforms with a comparison matrix.
 - `findings/04-egress-credentials-observability.md`: threat model, egress controls, credential brokering, Falco/Tetragon/gVisor monitoring, agent OTel, escape CVE history.
+- `findings/05-agent-runtimes-openshell-and-peers.md`: NVIDIA OpenShell and NemoClaw in depth (architecture, policy model, prover, OCSF logging, CVEs), claw-style runtimes, governance toolkits and agent firewalls, AWS AgentCore and Azure dynamic sessions.
 
 ## Original Prompt
 
