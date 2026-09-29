@@ -17,3 +17,9 @@ Broad survey of agent isolation/sandboxing from homelab to small/medium deployme
   - Most published agent-sandbox escapes are bugs in the agent's own policy layer (config/hook injection, allowlist parsing, Docker socket exposure), not kernel or hypervisor breaks.
   - Host eBPF tools (Falco, Tetragon) lose visibility inside microVM guests; gVisor exports its own runtime-monitoring stream that Falco can consume.
   - Items that only have secondary sources are marked uncertain: SOCKS5 null-byte bypass, Cursor "DuneSlide", Docker MCP Gateway flag names, gVisor CVE-2025-2713.
+- Track 3 (platforms) came back: 31 platforms or tools covered. What surprised me:
+  - Daytona went closed source on 2026-06-11. v0.190.0 was the last AGPL release, and a community fork called Nightona is continuing from it. I had assumed it was a stable OSS self-host option.
+  - Pydantic's mcp-run-python was archived on 2026-01-30. Its successor is Monty, an MIT-licensed Python interpreter written in Rust. That changes the "WASM code-exec MCP" recommendation.
+  - Keeping credentials out of the sandbox, via an egress proxy that swaps in the real secret, is now standard on hosted platforms. Modal is the notable exception: it still uses environment variables.
+  - Observability is thin across platforms. None offers native session replay or filesystem diffs. OTel export exists in only a few places, some experimental and some enterprise-only.
+  - Needs checking: E2B's ~150 ms startup is from secondary sources only. Morph's internals are undocumented. The agent-sandbox release dates look off.
