@@ -23,3 +23,10 @@ Broad survey of agent isolation/sandboxing from homelab to small/medium deployme
   - Keeping credentials out of the sandbox, via an egress proxy that swaps in the real secret, is now standard on hosted platforms. Modal is the notable exception: it still uses environment variables.
   - Observability is thin across platforms. None offers native session replay or filesystem diffs. OTel export exists in only a few places, some experimental and some enterprise-only.
   - Needs checking: E2B's ~150 ms startup is from secondary sources only. Morph's internals are undocumented. The agent-sandbox release dates look off.
+- Track 2 (runtimes) came back. What changed my framing:
+  - gVisor needs no KVM (systrap has been the default since 2023), so it is the only strong boundary that works inside an ordinary cloud VM or Proxmox guest without nested virtualisation.
+  - libkrun's README says the guest and the VMM share one security context. microVM tools built on it need host-side sandboxing of the VMM process, so "microVM" does not automatically mean "VM-grade boundary".
+  - OrbStack's own docs say isolated machines "aren't a full security boundary" because they share one kernel. Apple `container` runs a real VM per container.
+  - Kata's 2026 advisories are mostly in host-side glue (pod annotations, virtiofsd, hotplug), not KVM.
+  - Observability inverts with boundary strength: host eBPF sees everything for runc/Sysbox/LXC, gVisor needs its own runtime-monitoring stream, and VMs are opaque without an in-guest agent.
+  - Leaving out gVisor "CVE-2026-96812" as a headline. It was published four days ago and I could find no vendor advisory or NVD analysis, only an OpenCVE entry plus a matching commit. I'll mention it only as unverified.
