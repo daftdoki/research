@@ -1,0 +1,56 @@
+# Agent isolation & sandboxes survey — Notes
+
+## Goal
+
+Broad survey of agent isolation/sandboxing from homelab to small/medium deployments; contrast capabilities, security guarantees, observability.
+
+## Work log
+
+- Split the survey into four research tracks, each delegated to a subagent that reads primary docs and records sources:
+  1. OS-level primitives and the sandboxes built into coding agents (bubblewrap, Landlock, seccomp, Seatbelt, Claude Code / Codex / Gemini CLI sandboxes, rootless containers).
+  2. Stronger isolation runtimes (gVisor, Kata, Firecracker, Cloud Hypervisor, libkrun, Apple Containerization, WASM, Sysbox, Incus).
+  3. Agent sandbox platforms, self-hostable and hosted (E2B, Daytona, microsandbox, container-use, Docker Sandboxes, k8s agent-sandbox, Modal, Cloudflare, Vercel, etc.).
+  4. Cross-cutting controls: egress filtering, credential brokering, runtime security/observability (Falco, Tetragon, auditd), LLM tracing, recent escape CVEs.
+- Track 4 (controls/observability) came back. Key lessons:
+  - Several exfiltration attacks went through *allowed* domains: api.anthropic.com Files API, GitHub via the GitHub MCP server, and Codex's broad default allowlist. So an allowlist alone is not the whole answer.
+  - I had assumed Anthropic's reference devcontainer firewall was strict default-deny. Reading init-firewall.sh shows it allows UDP/53 and TCP/22 to any host plus the host /24, and resolves domains once at start.
+  - Most published agent-sandbox escapes are bugs in the agent's own policy layer (config/hook injection, allowlist parsing, Docker socket exposure), not kernel or hypervisor breaks.
+  - Host eBPF tools (Falco, Tetragon) lose visibility inside microVM guests; gVisor exports its own runtime-monitoring stream that Falco can consume.
+  - Items that only have secondary sources are marked uncertain: SOCKS5 null-byte bypass, Cursor "DuneSlide", Docker MCP Gateway flag names, gVisor CVE-2025-2713.
+- Track 3 (platforms) came back: 31 platforms or tools covered. What surprised me:
+  - Daytona went closed source on 2026-06-11. v0.190.0 was the last AGPL release, and a community fork called Nightona is continuing from it. I had assumed it was a stable OSS self-host option.
+  - Pydantic's mcp-run-python was archived on 2026-01-30. Its successor is Monty, an MIT-licensed Python interpreter written in Rust. That changes the "WASM code-exec MCP" recommendation.
+  - Keeping credentials out of the sandbox, via an egress proxy that swaps in the real secret, is now standard on hosted platforms. Modal is the notable exception: it still uses environment variables.
+  - Observability is thin across platforms. None offers native session replay or filesystem diffs. OTel export exists in only a few places, some experimental and some enterprise-only.
+  - Needs checking: E2B's ~150 ms startup is from secondary sources only. Morph's internals are undocumented. The agent-sandbox release dates look off.
+- Track 2 (runtimes) came back. What changed my framing:
+  - gVisor needs no KVM (systrap has been the default since 2023), so it is the only strong boundary that works inside an ordinary cloud VM or Proxmox guest without nested virtualisation.
+  - libkrun's README says the guest and the VMM share one security context. microVM tools built on it need host-side sandboxing of the VMM process, so "microVM" does not automatically mean "VM-grade boundary".
+  - OrbStack's own docs say isolated machines "aren't a full security boundary" because they share one kernel. Apple `container` runs a real VM per container.
+  - Kata's 2026 advisories are mostly in host-side glue (pod annotations, virtiofsd, hotplug), not KVM.
+  - Observability inverts with boundary strength: host eBPF sees everything for runc/Sysbox/LXC, gVisor needs its own runtime-monitoring stream, and VMs are opaque without an in-guest agent.
+  - Leaving out gVisor "CVE-2026-96812" as a headline. It was published four days ago and I could find no vendor advisory or NVD analysis, only an OpenCVE entry plus a matching commit. I'll mention it only as unverified.
+- Track 1 (OS primitives) came back. Things I had wrong going in:
+  - I assumed Codex used Landlock on Linux. It now uses bwrap+seccomp by default and rejects the legacy Landlock mode, because Landlock cannot isolate app-server Unix sockets. Cursor is the tool that uses Landlock+seccomp.
+  - Gemini CLI's default macOS profile (`permissive-open`) allows reading any file and open network access. Its gVisor mode is the strongest built-in agent option.
+  - Landlock gained native audit records in ABI 7 (Linux 6.15). That is the first Linux sandbox primitive with first-class denial logging. Before that, bwrap/seccomp denials were effectively silent.
+- Synthesis decisions:
+  - Framed the report as a ladder of boundaries (policy → process → container → gVisor → VM, with language sandboxes as a side branch) plus three cross-cutting controls (egress, credentials, observability). Every source kept pointing out that the boundary alone does not stop exfiltration.
+  - The "observability inversion" (a stronger boundary gives less host visibility) became a central table.
+  - Copied the four source-annotated track files into `findings/` so every table row can be traced to a URL.
+  - Kept unverified items (gVisor CUSE CVE, SOCKS5 fix version, Landlock ABI 8+ kernels, E2B 150 ms, Kata boot numbers) flagged rather than dropped.
+  - Hedged the Docker Sandboxes-on-Linux recommendation, because its host OS support and hypervisor are not documented in what we read.
+
+## Follow-up: NVIDIA OpenShell and similar frameworks
+
+- The user asked about NVIDIA's OpenShell and similar frameworks. I had not covered it in the first pass.
+- Sent a fifth research track, written to `findings/05-agent-runtimes-openshell-and-peers.md`. It read NVIDIA's docs as raw Markdown, CVE.org JSON and PyPI metadata. GitHub API metadata was unreachable.
+- What surprised me:
+  - OpenShell 0.1.0 shipped 2026-09-25 with breaking changes and removed the "privacy router" (`inference.local`) that was central to the GTC launch pitch.
+  - NemoClaw still pins 0.0.116, so the two NVIDIA stacks are currently on different lines.
+  - OpenShell's default isolation is Landlock+seccomp inside a container, the same shared-kernel tier as the coding-agent built-ins. Only the opt-in libkrun `vm` driver is a hardware boundary.
+  - Its observability (OCSF events with binary + destination + matching policy, exported as JSONL to a SIEM) is better than anything in the platform survey, but has no OTel. The gateway log buffer is in-memory only.
+  - Six CVEs were published 2026-08-25 for ≤0.0.33, including a 9.9 sandbox escape.
+  - Microsoft's Agent Governance Toolkit README says outright that it runs in the agent's process. It is tier-0 governance, not isolation.
+- Placed it in the report as section 3.3. It is framed as an integration layer over existing tiers, not a new tier.
+- Unverified: OpenClaw incident claims (from Cisco and press only), the "privacy router" naming (press release only), and Lasso gateway maintenance status.
