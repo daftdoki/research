@@ -628,3 +628,103 @@ the same thing more usefully for this purpose:
 > consolidation."
 
 That is the honest version of the metaphor, written by people building on it.
+
+## Fourth pass: Honcho, the one I missed (2026-09-30)
+
+The creator asked whether Honcho's local-host option had been analysed. It hadn't —
+Honcho (Plastic Labs) never surfaced in the first two passes' searches and I did not
+add it in the third. That is a gap worth owning: it is a fifth shipping dream cycle,
+open source, and it makes design choices none of the other four make.
+
+Method: shallow clone of `plastic-labs/honcho` at `a3c30e1` (2026-09-30), then
+`src/dreamer/orchestrator.py`, `dream_scheduler.py`, `surprisal.py`,
+`src/utils/agent_tools.py` (the specialist tool sets), `src/deriver/enqueue.py`
+(the cancel-on-activity path), `.env.template`, `config.toml.example`, the
+`docs/v3/` architecture, reasoning, self-hosting and configuration pages, and
+`CHANGELOG.md`. Every figure below is from those files.
+
+### What "local host" actually means
+
+`uv tool install honcho-cli && honcho start --setup basic` pulls
+`ghcr.io/plastic-labs/honcho:latest` and starts API + deriver worker + Postgres
+(pgvector) + Redis in Docker, profile under `~/.honcho/profiles/local/`. Or
+`docker compose up` from source. AGPL-3.0.
+
+The server is local; the reasoning is not, by default. `.env.template`: "Honcho uses
+LLMs for memory extraction, summarization, dialectic chat, and dream consolidation.
+The server will fail to start without a provider configured." Defaults are
+`openai / gpt-5.4-mini` and `text-embedding-3-small`; "Models must support tool
+calling (function calling)"; the CLI README says `honcho start` "Requires Docker and a
+cloud LLM key." The docs' "custom models trained specifically for logical rigor" are
+the hosted service's — nothing in the self-hosted defaults names one.
+
+Fully local is a per-feature wiring job: `transport = "openai"`,
+`LLM_OPENAI_API_KEY=ollama`, `*_MODEL_CONFIG__OVERRIDES__BASE_URL=http://localhost:11434/v1`
+on deriver, the five dialectic levels, summary, dream deduction, dream induction and
+embeddings. The dreamer is where a small model breaks: each specialist is a tool loop
+of up to `MAX_TOOL_ITERATIONS=20` over a `HISTORY_TOKEN_LIMIT=16384` budget. Surprisal
+with sklearn tree types needs `uv sync --extra surprisal` (not in the Docker image);
+`rptree`, `covertree`, `lsh` need only numpy.
+
+### The dream cycle, from the code
+
+**Trigger** (`check_and_schedule_dream`): dreams enabled; explicit-observation count
+since the last dream ≥ `DOCUMENT_THRESHOLD` (50) — explicit only, because "dreamer
+output does not count"; ≥ `MIN_HOURS_BETWEEN_DREAMS` (8) since the last dream; no
+dream pending or scheduled for this (workspace, observer, observed). Then
+`schedule_dream` with `delay_minutes = IDLE_TIMEOUT_MINUTES` (60). In
+`src/deriver/enqueue.py`, every incoming message calls
+`cancel_dreams_for_observed(workspace, peer)` — "Cancel any pending dreams for affected
+collections since user is active again." So: threshold + cooldown + idle debounce.
+`last_dream_at` is written in `process_dream`, not at enqueue, so a failed run does not
+reset the eight-hour guard (#573).
+
+**Phases** (`run_dream`): optional surprisal sampling → deduction specialist →
+induction specialist, sequential, "after deduction so it can see new deductive obs".
+Separate model config per phase. Manual trigger: `POST
+/v3/workspaces/{id}/schedule_dream` with `dream_type` `omni` or `card_refresh`.
+
+**Tools** (`agent_tools.py`): `create_observations` "at any level: explicit (facts),
+deductive (logical necessities), inductive (patterns), or contradiction (conflicting
+statements). For deductive, inductive, and contradiction observations, missing or empty
+source_ids are invalid and will be rejected." `delete_observations` by id.
+`update_peer_card` — "Complete deduplicated peer card list (max 40 entries)". Read
+tools: `search_memory`, `get_recent_observations`, `get_most_derived_observations`,
+`get_observation_context`, `get_reasoning_chain`, message search by text, grep, date
+range. The `card_refresh` specialist has no observation-mutating tools at all.
+
+**Surprisal** (`surprisal.py`): fetch by `SAMPLING_STRATEGY` (recent, 200), build a
+tree over embeddings (`kdtree` default, k=5), score each observation's geometric
+surprisal, take the top 10%, require ≥10 to act, restricted to `explicit` and
+`deductive` levels. The result is *hints*: "specialists are free to follow the
+evidence wherever it leads." Off by default. #581: the level filter used
+`{"level": levels}` where the tool needs operator syntax, "so the prior call silently
+returned 0 results and made the entire Surprisal phase of the Dream cycle a no-op."
+
+**Blast radius**: none found. I looked for a deletion cap in `settings.DREAM`, the
+specialists and the tool wrappers; there is the iteration cap and nothing else.
+
+**Cost visibility**: Prometheus `record_dreamer_tokens`, `dreams_due` gauge,
+`CallPurpose` values `dream.deduction | dream.induction`, `DreamRunEvent` and
+`DreamSpecialistEvent` CloudEvents, Langfuse traces with "dreamer branches nest under
+one dream trace".
+
+**Timeline**: v3.0.0, 2026-01-19, "Agentic Dreamer for intelligent memory
+consolidation using LLM agents" — three months before Anthropic's Dreams beta header
+date and five before OpenAI's V3 post. Fixes since: #573 (threshold feedback loop),
+#581 (surprisal no-op), #890 (conclusions dated to ingestion, not evidence), #945
+(fabricated `source_ids` stripped, under-sourced observations rejected), #1217
+(malformed tool arguments returned as errors instead of crashing the loop).
+
+### What it changes in the report
+
+- The products table gains a column and the count goes to five. Honcho's trigger is
+  the best-specified of the five and the closest to what a small system should copy.
+- "Selection is not synthesis" gets no new example — Honcho's writer *is* a synthesis
+  step — but "Consolidation is an attack surface" gets one: surprisal is the novelty
+  mirror of OpenClaw's frequency scorer, and equally not a trust signal.
+- "Updating is where the field actually is" gets a third principled response beside
+  Graphiti and Mem0: store the contradiction, don't resolve it.
+- The provenance recommendation gets the write-path form: refuse a synthesised entry
+  that cannot cite real sources.
+- The metaphor section's count of clocked implementations stays at one in five.
