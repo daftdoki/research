@@ -131,7 +131,19 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 20 research projects
+## 21 research projects
+
+### [Agent Isolation and Sandboxing: A Survey from Homelab to Medium Deployments](https://github.com/daftdoki/research/tree/main/agent-isolation-sandboxes-survey#readme) (2026-09-29 23:21)
+
+Agent isolation is best understood as a ladder of boundaries (from policy-only through OS sandboxes to hardware VMs) plus three cross-cutting controls: network egress, credential brokering, and observability. The 2026 research covers 31 agent sandbox platforms, dozens of isolation primitives, and a new class of integrated "sandbox + policy" runtimes led by [NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell), which bundles egress rules, credential placeholders, policy proving, and SIEM-grade OCSF logging. Findings show most real escapes in 2025–2026 were policy-layer bugs and harness mistakes rather than kernel breaks; every built-in coding-agent sandbox shares the host kernel; and OpenShell is the most complete packaged option but very young: 0.1.0 shipped in late September 2026 as a breaking release, after a batch of critical CVEs against early 0.0.x versions was published in August.
+
+Key findings:
+
+- The isolation ladder has clear trade-offs: process sandboxes (bubblewrap, Landlock, Seatbelt) inherit kernel LPEs; gVisor offers a strong boundary without KVM; hardware VMs (Firecracker, Kata) are opaque to host telemetry.
+- Real exfiltration paths use allowlisted domains (GitHub, `api.anthropic.com`), DNS tunnels, and domain fronting; hostname-only filtering does not stop them, and TLS-intercepting proxies with request logging are needed.
+- A new generation of governance toolkits (Microsoft Agent Governance Toolkit, Cisco DefenseClaw, agentgateway) are policy and logging layers that sit on top of a sandbox; they do not replace the boundary.
+- Observability is the weakest part: no platform offers session replay.
+- [kubernetes-sigs/agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox) is the reference for medium deployments. Homelabs and small teams should default to per-agent disposable VMs with TLS-intercepting egress control outside the boundary.
 
 ### [Claude Code skills for writing a plain, short project README](https://github.com/daftdoki/research/tree/main/readme-writing-skills-for-claude-code#readme) (2026-09-20 04:58)
 
