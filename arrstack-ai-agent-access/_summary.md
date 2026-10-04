@@ -1,0 +1,5 @@
+The *arr stack apps (Sonarr, Radarr, SABnzbd, Jellyfin, Plex, etc.) all expose HTTP APIs with a single unscoped admin key, and [bardesss/arr-mcp](https://github.com/bardesss/arr-mcp) provides agent integration with read-only defaults, per-service write approval, and audit logging. Since only the download clients offer limited-scope credentials, safety controls must live in the MCP server, a reverse proxy, or client approval prompts. [Home Assistant](https://www.home-assistant.io/integrations/sonarr/) and generic OpenAPI bridges offer narrower alternatives. The arrstack deployment on 'frame' remains unknown pending a Neckbeard session response.
+
+- The Servarr apps and Seerr publish OpenAPI specs; SABnzbd, NZBGet, qBittorrent, Tautulli and Bazarr have documented APIs
+- Only download clients offer scoped credentials: SABnzbd has NZB-only keys; NZBGet has Restricted and Add-only users
+- bardesss/arr-mcp (MIT, Docker, 72★) defaults to read-only with writes on per-service; mcp-arr (222★) is more popular but lacks read-only mode
