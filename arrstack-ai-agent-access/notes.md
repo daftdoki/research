@@ -54,3 +54,14 @@ the host `frame` actually contains.
   request found for any *arr app; Readarr retirement only via community repost.
 - CVEs: CVE-2026-30975 (Sonarr XFF auth bypass, fixed 4.0.16.2944),
   CVE-2026-30976 (Sonarr Windows unauth file read, fixed 4.0.17.2952).
+  Sources: https://wiki.servarr.com/sonarr/settings ,
+  https://releasealert.dev/cve/CVE-2026-30976
+- 23:09 check-in: neckbeard-dhi shows my resend as a `queued_notification`
+  (22:57:49). That session advertises the `queued_notifications` capability,
+  so a cross-session message waits in its queue until its own user starts a
+  turn and it calls ReadNotifications. It never consumed the first copy as a
+  turn either. Result: no answer about frame. The frame section of the README
+  is marked pending, with the question to ask.
+- Lesson: to get an answer from a bridged local session that is idle at a
+  user prompt, the user has to nudge it ("read your notifications") or the
+  question has to go to a session that is actively working.
