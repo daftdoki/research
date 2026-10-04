@@ -131,7 +131,16 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 21 research projects
+## 22 research projects
+
+### [Discogs Access for AI Agents: Collection, Wantlist, and Catalogue Search](https://github.com/daftdoki/research/tree/main/discogs-ai-agent-access#readme) (2026-10-04 22:42)
+
+The REST API at [api.discogs.com v2](https://www.discogs.com/developers) is the only sanctioned route for AI agents to access Discogs collections, wantlists, and catalogue search—every community MCP server wraps this same API. The website blocks all non-browser access via Cloudflare and contractual scraping bans, leaving the unauthenticated (25 req/min) and authenticated (60 req/min) REST API as the viable option. Terms of Service prohibit training on Discogs content, while the API Terms of Use restrict collection and wantlist data to personal, non-commercial use and require re-syncing caches every 6 hours. For bulk catalogue queries, the monthly CC0 data dumps avoid rate limits and the 10,000-result search cap.
+
+- Personal tokens or OAuth 1.0a authentication (no OAuth 2 available)
+- [rianvdm/discogs-mcp](https://github.com/rianvdm/discogs-mcp) v3.5.0 now covers collections, wantlists (newly added), and search with browser login and cached data
+- [cswkim/discogs-mcp-server](https://github.com/cswkim/discogs-mcp-server) offers the broadest local token-based tool surface (128 stars)
+- Collection and wantlist are "Restricted Data"—don't transfer to third parties or use commercially; personal agents on your own data fit within the licence
 
 ### [Agent Isolation and Sandboxing: A Survey from Homelab to Medium Deployments](https://github.com/daftdoki/research/tree/main/agent-isolation-sandboxes-survey#readme) (2026-09-29 23:21)
 
