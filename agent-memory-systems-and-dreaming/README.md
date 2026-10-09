@@ -18,10 +18,10 @@ works — enough to evaluate design choices in a small memory system of one's ow
 convincing evidence behind it.**
 
 1. A **product feature** — an offline pass that merges, prunes and supersedes entries
-   in a memory store (OpenClaw Dreaming, Anthropic's Managed Agents **Dreams**, Letta
-   **Dreaming**, ChatGPT **Dreaming V3**). This is database maintenance with a sleep
-   metaphor bolted on. It is genuinely useful and genuinely unglamorous. Note that only
-   one of those four actually runs at night — see
+   in a memory store (OpenClaw Dreaming, Honcho's Dreamer, Anthropic's Managed Agents
+   **Dreams**, Letta **Dreaming**, ChatGPT **Dreaming V3**). This is database
+   maintenance with a sleep metaphor bolted on. It is genuinely useful and genuinely
+   unglamorous. Note that only one of those five actually runs at night — see
    [what the products ship](#what-the-dream-cycle-products-actually-ship-read).
 2. An **inference-scaling technique** — Letta and UC Berkeley's *sleep-time compute*:
    precompute reasoning over a context before the query arrives. It has real numbers
@@ -131,7 +131,7 @@ has been copied.
 | Extract–retrieve | Mem0, Memobase, Supermemory | LLM extracts facts; vector/hybrid retrieval serves them | Cheap, simple, framework-agnostic |
 | Temporal graph | Zep/Graphiti, kaeru | Bi-temporal knowledge graph; facts have validity windows | Facts change and you must audit the change |
 | Associative / Zettelkasten | A-MEM, HippoRAG | Links between memories are first-class | Multi-hop and sense-making queries |
-| Dream cycle | OpenClaw Dreaming, Anthropic Dreams, Letta Dreaming, ChatGPT Dreaming V3 | Offline pass that merges/prunes/supersedes | Store grows monotonically and rots |
+| Dream cycle | OpenClaw Dreaming, Honcho Dreamer, Anthropic Dreams, Letta Dreaming, ChatGPT Dreaming V3 | Offline pass that merges/prunes/supersedes | Store grows monotonically and rots |
 | Precompute | Sleep-time compute | Reason over context before the query arrives | Latency and per-query cost |
 | Context engineering | Anthropic compaction + note-taking + subagents | Manage the window rather than build a store | Long-horizon single tasks |
 
@@ -172,27 +172,67 @@ score floor under structural facts like IPs and URLs.
 
 ### What the dream-cycle products actually ship **[read]**
 
-Four vendors now ship something called dreaming. Reading the first-party docs rather
-than the coverage, they agree on *what* the pass does and disagree on almost every
-design decision that matters:
+Five vendors now ship something called dreaming. Reading the first-party docs and, for
+the open-source one, the code rather than the coverage, they agree on *what* the pass
+does and disagree on almost every design decision that matters:
 
-| | OpenClaw Dreaming | Anthropic Managed Agents **Dreams** | Letta **Dreaming** | ChatGPT **Dreaming V3** |
-|---|---|---|---|---|
-| Trigger | nightly cron `0 3 * * *` | on demand (`POST /v1/dreams`) | step count, or compaction event | continuous background |
-| Writes to | the live store | a **new** store; input never modified | MemFS (git-backed) | the live memory state |
-| Scope | staged candidates | 1 store + 1–100 session transcripts | recent conversations | years of conversations |
-| Blast-radius control | `maxPriorEntryLossFraction` 0.25 | total — input is read-only | backup-before-reorganise | not documented |
-| Review before adopt | no | **yes** — you inspect the output store, then attach or delete it | optional "agent reviews before applying" | memory summary page, after the fact |
-| Sweep cost visible | no | **yes** — `usage` on the dream resource, live | no | no |
-| Status | shipping | research preview (`dreaming-2026-04-21` beta header) | shipping | rolling out from June 4, 2026 |
+| | OpenClaw Dreaming | Honcho **Dreamer** | Anthropic Managed Agents **Dreams** | Letta **Dreaming** | ChatGPT **Dreaming V3** |
+|---|---|---|---|---|---|
+| Trigger | nightly cron `0 3 * * *` | ≥50 new explicit observations **and** ≥8 h since the last dream, then 60 min idle; any new message cancels the pending dream | on demand (`POST /v1/dreams`) | step count, or compaction event | continuous background |
+| Writes to | the live store | the live store (Postgres); typed levels explicit / deductive / inductive / **contradiction** | a **new** store; input never modified | MemFS (git-backed) | the live memory state |
+| Scope | staged candidates | one (observer, observed) pair; 16k-token history, 20 tool iterations per specialist | 1 store + 1–100 session transcripts | recent conversations | years of conversations |
+| Blast-radius control | `maxPriorEntryLossFraction` 0.25 | none found — the iteration cap bounds effort, not deletion | total — input is read-only | backup-before-reorganise | not documented |
+| Review before adopt | no | no; contradictions are *recorded* as observations rather than resolved | **yes** — you inspect the output store, then attach or delete it | optional "agent reviews before applying" | memory summary page, after the fact |
+| Sweep cost visible | no | **yes** — Prometheus token counters per phase, a `dreams_due` gauge, Langfuse traces | **yes** — `usage` on the dream resource, live | no | no |
+| Status | shipping | shipping since v3.0.0, **2026-01-19**; AGPL-3.0 | research preview (`dreaming-2026-04-21` beta header) | shipping | rolling out from June 4, 2026 |
 
-Four things are worth pulling out.
+Five things are worth pulling out.
 
-**Only one of the four is nightly.** The sleep metaphor implies a clock, and three of
-the four implementations don't use one. Letta's choice is the most interesting:
+**Only one of the five is nightly.** The sleep metaphor implies a clock, and four of
+the five implementations don't use one. Letta's choice is the simplest departure:
 consolidation fires on *step count or context compaction*, so it tracks how much work
-happened rather than how much time passed. For anything with uneven usage that is a
-better default than 3am.
+happened rather than how much time passed. Honcho's is the most carefully specified:
+it fires on accumulated evidence (fifty new explicit observations, and the dreamer's own
+output is excluded from the count after #573 found it inflating its own trigger),
+rate-limits itself to one dream per eight hours, and then *waits for the user to go
+quiet* — sixty minutes of inactivity, with any new message cancelling the pending dream
+and re-arming the check. That is "consolidate when they've stopped talking", stated as
+three settings. For anything with uneven usage either is a better default than 3am.
+
+**Honcho is the only one whose writer you can read.** The Dreamer is two sequential
+tool-using agents — a deduction specialist, then an induction specialist that sees the
+deduction's output — each with up to twenty tool iterations over `search_memory`,
+message retrieval, `create_observations`, `delete_observations` and `update_peer_card`.
+Two design choices deserve copying. First, provenance is enforced at the write path:
+a deductive, inductive or contradiction observation "with missing or empty
+`source_ids`" is invalid, and after #945 fabricated ids are stripped and an
+observation left below its level's minimum real sources is rejected. Second,
+**contradiction is an observation level, not a resolution step**: where Anthropic's
+doc says "stale or contradicted entries replaced with the latest value", Honcho records
+the conflict as a first-class object and leaves it for the query-time agent. That is
+the honest answer to whether a dream cycle verifies anything — it doesn't, and Honcho
+is the one that says so in its schema.
+
+Its optional *surprisal* pre-pass is the other novelty: a kd-tree over the embeddings
+of the last 200 explicit and deductive observations picks the 10% most geometrically
+anomalous and hands them to the specialists as hints they are "free to ignore". It is
+the opposite of OpenClaw's frequency scorer — it hunts what the field has *not* seen
+before. It is off by default, and was a silent no-op until #581 fixed a filter that
+returned zero rows.
+
+The changelog is also the most complete record available of what a model-written
+consolidation pass does in eight months of production: fabricated source ids (#945),
+conclusions dated to ingestion rather than to their evidence (#890), a trigger that
+counted its own output (#573), and a whole phase that ran and did nothing (#581). Every
+one was caught because every call is traced. Instrument the sweep before you trust it.
+
+On self-hosting, since the question comes up: `honcho start --setup basic` runs the API,
+the deriver worker, Postgres with pgvector and Redis in Docker. "Local" means the
+*server* is local; every agent — deriver, dialectic, dreamer — still needs an LLM with
+OpenAI-style tool calling, and the defaults are cloud (`gpt-5.4-mini`,
+`text-embedding-3-small`; the server refuses to start without a key). Ollama or vLLM
+work through a per-feature `base_url` override, ten settings in all, and the dreamer's
+twenty-iteration tool loop is exactly where a small local model will fail first.
 
 **Anthropic's version sidesteps the update problem entirely.** A dream reads one memory
 store plus up to 100 session transcripts and emits a *separate* output store — "The
@@ -374,9 +414,10 @@ biological claim about language models, but as an operational design principle f
 separating fast acquisition from slow cross-session consolidation." That is the version
 to steal — the scheduling discipline, not the biology.
 
-And the schedule itself turns out to be the part the metaphor gets wrong. Of the four
+And the schedule itself turns out to be the part the metaphor gets wrong. Of the five
 shipping implementations, only OpenClaw's actually runs at night; Anthropic's is
-on-demand, Letta's fires on step count or compaction, OpenAI's is continuous. "Sleep"
+on-demand, Letta's fires on step count or compaction, Honcho's fires on accumulated
+evidence and then waits for the user to go quiet, OpenAI's is continuous. "Sleep"
 is a name for *out of band*, not for a time of day.
 
 This matters practically because the metaphor invites you to build phases you do not
@@ -428,8 +469,10 @@ This is the strongest argument for the temporal-graph approach. Graphiti does no
 update facts; it attaches validity windows and *invalidates* superseded ones, keeping
 the original episode as traceable ground truth. Mem0's April 2026 rewrite went the
 other way and removed UPDATE and DELETE entirely — memories accumulate and retrieval
-sorts it out. Both are principled responses to the same observation: in-place mutation
-of an LLM-extracted fact store is where correctness goes to die.
+sorts it out. Honcho takes a third route: a contradiction between two observations is
+itself stored as an observation, at its own level, with both sources cited, and nothing
+is overwritten. All three are principled responses to the same observation: in-place
+mutation of an LLM-extracted fact store is where correctness goes to die.
 
 For a small system, the cheap version of this is an append-only log with supersession
 pointers. You get auditability and time-travel for roughly the cost of never running
@@ -495,9 +538,17 @@ prompt generalised at the cost of flagging benign records and "undermining the
 utility." What remains is system-level: isolating memory banks across users, and rate
 limiting.
 
+Honcho's surprisal pass is worth a second look through this lens. A novelty-seeking
+selector — "find the observations least like everything else and reason about them" —
+is a good idea for filling gaps in a field and a bad one against MINJA, because an
+injected record is, by construction, the most surprising thing in the bank. Frequency
+promotes what the attacker repeats; surprisal promotes what the attacker plants once.
+Neither is a trust signal.
+
 OpenClaw's answer is the right shape: exclude `untrusted` and `system` provenance
-candidates *before* consolidation runs, not after. If you build a sweep, build the
-provenance filter in the same commit.
+candidates *before* consolidation runs, not after. Honcho's is the other half:
+a derived conclusion that cannot name real sources is refused at the write path. If
+you build a sweep, build both in the same commit.
 
 ### What this means for a small system
 
@@ -521,9 +572,12 @@ In rough priority order:
    construction. Pick one of the three. Anything less conservative and one bad model
    call eats your memory.
 5. **Trigger on work done, not on the clock.** Letta fires consolidation on step count
-   or on a compaction event. For uneven usage that beats a nightly cron, which either
-   runs over nothing or falls far behind.
-6. **Provenance before promotion**, as a security control.
+   or on a compaction event; Honcho on fifty new observations and eight hours, then
+   sixty minutes of quiet, cancelled by any new activity. For uneven usage either beats
+   a nightly cron, which runs over nothing or falls far behind.
+6. **Provenance before promotion**, as a security control — and at the write path, as
+   Honcho does: a synthesised entry that cannot cite real sources is refused, not
+   stored.
 7. **Keep it human-readable.** Every dream-cycle implementation examined here — the two
    OpenClaw projects, Letta's git-backed MemFS, Claude Code's `MEMORY.md` plus topic
    files — chose plain Markdown over a vector store, on the grounds that you cannot
@@ -579,7 +633,7 @@ The genuinely open questions after this pass:
 2. **What does a sweep cost in production?** Anthropic's API now exposes it per job,
    which makes the question answerable for the first time — but no one has published
    the answer.
-3. **Do the shipping products work?** Four vendors ship dreaming. Not one has published
+3. **Do the shipping products work?** Five vendors ship dreaming. Not one has published
    an evaluation anyone outside the company can check; OpenAI's is chart images of an
    unreleased internal benchmark.
 
