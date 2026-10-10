@@ -177,3 +177,27 @@ Two families emerged:
   push, no dev-channel flag) or hooks; Hermes listed as supported but "not
   spawnable"; remote sync = reference server + Postgres (docker compose),
   plaintext or E2E with a hand-carried key bundle.
+
+### Community agent report (summary) and final checks
+
+- Reddit unreachable on every route (403/429): www, old, json, rss, pullpush.
+  Traction evidence = HN Algolia, stars, press.
+- Big projects the earlier pass missed, verified by batch `repo:` lookup
+  2026-10-10: herdr 43,251★; qm (yc-software) 15,379★; gastown 18,322★ +
+  beads 27,785★; munder-difflin 8,644★; openrig 6,726★; claude_codex_bridge
+  3,560★; claude-peers-mcp 2,207★; scion 1,736★; agentchattr 1,530★;
+  openclaw-a2a-gateway 552★ (A2A v0.3, not 1.0); concord-mcp 444★.
+- Re-read the Claude Code cross-session docs. Correction to the community
+  agent's claim: cross-machine conversations *can* be initiated (needs v2.1.225+
+  and the target in the listing); a message is one-way (no reply address)
+  only when the *sender* isn't connected to Remote Control. The inbox socket is
+  documented for scripts/hooks (`CLAUDE_CODE_MESSAGING_SOCKET`,
+  `CLAUDE_CODE_MESSAGING_TOKEN`); with no `crossSessionInbound` set, a
+  prompting-mode receiver delivers peer messages. This is the hook for a
+  bridge that avoids the dev-channel flag.
+
+### Decision
+
+Recommend Cotal first, Matrix (Tuwunel) + Hermes native + cc_matrix_channel as
+fallback, Hermes native A2A for 1:1 delegation. Build only a thin per-host
+bus→inbox-socket bridge if the dev-channel flag is unacceptable.
