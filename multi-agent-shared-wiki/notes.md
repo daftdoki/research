@@ -90,3 +90,14 @@ Find wiki/knowledge-base solutions usable by many agent harnesses (Claude Code, 
 - Every serious file-native system converged on the same shape: markdown files in git as the source of truth, a rebuildable index beside it (ai-memory, KiwiFS, Letta MemFS, Basic Memory, iirc itself).
 - Two realistic paths: adopt ai-memory (turnkey, cross-harness hooks incl. Hermes, scopes = workspace/project/_global/private, ACLs), or build on a wiki substrate (KiwiFS spaces + If-Match) with thin per-harness adapters carrying iirc's trust model.
 - Extracted-fact servers are the wrong source of truth for a wiki; at most a derived index.
+
+## Follow-up: open-licence KiwiFS alternatives + Karpathy pattern
+
+- User likes KiwiFS's shape but wants a more open licence, and likes Karpathy's LLM Wiki approach.
+- Read the gist in full (cloned gist to scratchpad, llm-wiki.md, ~1,900 words). Points relevant to multi-agent use:
+  - Three layers: raw/ (immutable sources, the source of truth), wiki/ (LLM owns entirely), schema (CLAUDE.md/AGENTS.md) co-evolved with the human.
+  - Ops: ingest (one source may touch 10-15 pages), query (file good answers back as pages), lint (contradictions, stale claims, orphans, missing pages).
+  - index.md (catalog, updated every ingest, read first on query; "works surprisingly well at ~100 sources, ~hundreds of pages" without embeddings) and log.md (append-only, `## [date] op | title` prefix).
+  - qmd suggested once search is needed. "The wiki is just a git repo of markdown files."
+  - Written for one human + one agent. Says nothing about concurrent writers, scopes, or trust. Multi-agent adaptations needed: index.md and log.md become write hotspots (every ingest touches index.md) -> generate index.md from frontmatter and make log append-only per agent or server-appended; one schema file per space; raw/ stays immutable which suits a shared space well.
+  - Fit with iirc: iirc's pages are "what the agent learned"; Karpathy's are "compiled knowledge from sources". iirc's refs/check trust model is a natural "lint" input; Karpathy's lint is contradiction/staleness by reading.
