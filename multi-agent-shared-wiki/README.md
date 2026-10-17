@@ -30,6 +30,19 @@ Which wiki or knowledge-base systems can several agent harnesses use at once? Th
 - If it's the second, keep iirc's page format and trust rules. Move the storage to a spaces server (KiwiFS, or plain git repos behind a small MCP server), then add thin adapters for Hermes and Codex.
 - **Don't** use an extracted-fact memory server as the wiki itself. That rules out Mem0, Graphiti/Zep, Cognee, Honcho and Hindsight. Their LLM rewrites what agents send into facts or graph edges that nobody can open and edit like a page. At most, use one as a derived index alongside the wiki.
 
+**Follow-up: open licences and Karpathy's pattern.** KiwiFS has been under the BSL since its first commit, so there is no open version to fork. The closest OSI-licensed match is **[SilverBullet](https://github.com/silverbulletmd/silverbullet)** (MIT). It has multiple spaces with permissions for each account, git history attributed per account, and `If-Match` writes. It lacks an MCP server, and you would write one. Building from scratch with MIT/Apache parts is about the same effort:
+- one git repo per space,
+- [qmd](https://github.com/tobi/qmd) for search,
+- a fork of `llm-wiki-mcp` for the MCP layer.
+
+Karpathy's LLM Wiki works across many agents with four changes:
+- generate `index.md` instead of having agents edit it,
+- have the server write the `log.md` entries,
+- keep one schema file per space,
+- check `If-Match` on every page write.
+
+See [the follow-up section](#follow-up-open-licence-alternatives-to-kiwifs-and-karpathys-pattern).
+
 For additional and more detailed information see the [research notes](notes.md).
 
 ## Methodology
@@ -124,6 +137,60 @@ A Hermes adapter should use the `pre_llm_call` hook, not the `MemoryProvider` sl
   - ai-memory's Hermes session lifecycle depends on a community plugin.
   - ai-memory is young but very active: v3.0.1 and v3.1.0 shipped a day apart (2026-10-15 and 2026-10-16).
 
+## Follow-up: open-licence alternatives to KiwiFS, and Karpathy's pattern
+
+### There is no open KiwiFS to fork
+
+KiwiFS has been under the BSL since its first commit (2026-04-23). Each release becomes Apache-2.0 four years after it ships. Of the OSI-licensed projects, none matches every part of KiwiFS's design. Three come close in different ways:
+
+| Project (licence) | md is source of truth | Git commit per write, by agent | Spaces + per-space ACL | MCP | Write precondition | Search | Missing piece |
+|---|---|---|---|---|---|---|---|
+| KiwiFS (BSL 1.1), for reference | ✓ | ✓ (`X-Actor`) | ✓ | ✓ | ETag/`If-Match` | FTS5 + vectors | the licence |
+| **[SilverBullet](https://github.com/silverbulletmd/silverbullet)** (MIT, v2.12.1) | ✓ | ~ batched about 30 s after edits stop, attributed to the account | ✓ multi-space by default since 2.10, per-space permissions | ✗ | ✓ `If-Match: "sha256:…"` → 412 | full-text + semantic | an MCP wrapper; a forced commit per write |
+| **[OpenLore](https://github.com/aakarim/OpenLore)** (Apache-2.0) | ✓ | ✗ no git | ✓ docsets with per-identity `ro/publish/rw` grants | ✓ HTTP + stdio, also SSH/SFTP | ✓ SHA-256 compare-and-swap by default | grep/find only | git history, a search index |
+| **[ai-memory](https://github.com/akitaonrails/ai-memory)** (MIT) | ✓ | ~ commits under one fixed `ai-memory` author; per-user audit kept in SQLite | ✓ restricted projects + grants | ✓ + hooks for ~40 harnesses | ✗ single writer instead | FTS + entities + graph | it's a memory system, not a wiki you organise yourself |
+| [Gitea](https://gitea.com/gitea/gitea-mcp) + `gitea-mcp` (MIT) | ✓ (repos) | ✓ one Gitea user per agent | ✓ org/team/repo permissions | ✓ official | ✓ contents API needs the file's `sha` | weak | wiki links, backlinks, search |
+| [sage-wiki](https://github.com/xoai/sage-wiki) (MIT) | ✓ | ~ one commit per compile | ✗ one wiki per server | ✓ | ✗ | BM25 + vectors + graph | multiple spaces, concurrency control |
+
+Ruled out:
+- Basic Memory: AGPL, no git.
+- open-knowledge: GPL plus a CLA, and serves one project per server.
+- lucasastorian/llmwiki: hosted mode keeps pages in Postgres, not markdown files.
+- Gollum, Otter Wiki, Gitit: no API, one wiki per instance.
+- Wiki.js 2: the database is the source of truth.
+- Ar9av/obsidian-wiki: one tenant only.
+
+**Closest match: SilverBullet.** It already has markdown spaces on one server, a permission for each account in each space, git history attributed to each account, strict `If-Match` writes and a good wiki UI. Two gaps:
+- **No MCP server.** You'd write roughly 200 lines exposing `read`, `write` (with etag), `search`, `history` and `log_append` over its `/.fs`, `/.search` and `/.revisions` endpoints.
+- **Commits are batched, not one per write.** Calling `POST /.revisions/` after each write forces one.
+
+Attribution only works if each agent writes through the HTTP API with its own account token. SilverBullet records a change it didn't make itself, such as an agent writing the file directly, as **External**.
+
+**Building it yourself takes about the same effort, and everything is MIT or Apache:**
+- **Storage:** one git repo per space. Commit with `git commit --author` set from the agent's bearer token. Use the file's git blob SHA as its ETag, checked under a lock per repo.
+- **Search:** [qmd](https://github.com/tobi/qmd), one collection per space. It already has an MCP server.
+- **MCP layer:** start from [flsteven87/llm-wiki-mcp](https://github.com/flsteven87/llm-wiki-mcp) (MIT). It is alpha, but already shaped for Karpathy's pattern, with `wiki_read`, an ETag-checked `wiki_write_page`, `wiki_log_append` and `wiki_inventory`. Add a `space` argument, git commits and Streamable HTTP.
+- **Human UI:** SilverBullet in *Unmanaged* revisions mode, pointed at the same folders. In that mode it reads git history but never commits.
+
+### Fitting Karpathy's LLM Wiki to many agents
+
+[The gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) describes three layers and three operations:
+- **Layers:** `raw/`, immutable sources; `wiki/`, pages the LLM owns; and a schema file (`AGENTS.md`/`CLAUDE.md`).
+- **Operations:** *ingest*, where one source may touch 10–15 pages; *query*, where good answers get filed back into the wiki; and *lint*, which looks for contradictions, stale claims and orphan pages.
+- **Navigation:** `index.md` is a catalog the agent reads first. The gist says it "works surprisingly well" without embeddings at about 100 sources and hundreds of pages. `log.md` is an append-only record of what happened.
+
+The gist assumes one person and one agent. It says nothing about simultaneous writers, scopes or trust. Running it with many agents needs four changes:
+
+| Gist element | What breaks with many agents | Adaptation |
+|---|---|---|
+| `index.md`, updated on every ingest | Every ingest edits the same file, so writes collide constantly | Generate it from page frontmatter (title, summary, category) on commit or on read; agents never edit it |
+| `log.md`, append-only | Simultaneous appends, and no record of who wrote what | The server appends entries with the agent's identity (llm-wiki-mcp has `wiki_log_append`), or each agent keeps its own log |
+| one schema file | Different spaces need different rules | One `AGENTS.md` per space: the shared space gets strict ingest rules, an agent's own space gets loose ones |
+| ingest touching 10–15 pages | Two agents reconcile the same entity page at once | `If-Match` on every page write; on a 412 the agent re-reads, merges and retries |
+| `raw/` immutable | (nothing; this works well) | Shared `raw/` per space; project and task spaces link to it rather than copying |
+
+The gist's *lint* is where iirc's trust model fits. A page that cites `file@sha` and has a `check` command is something a lint pass can mark suspect mechanically, before the LLM looks for contradictions by reading. Karpathy's pattern compiles knowledge from sources. iirc's pages record what the agent learned on the job. One wiki can hold both, as separate folders or `kind`s inside each space.
+
 ## Files
 
 | File | Purpose |
@@ -135,3 +202,7 @@ A Hermes adapter should use the `pre_llm_call` hook, not the `MemoryProvider` sl
 ## Original Prompt
 
 > Research agent wiki solutions for multiple agent types (e.g., claude code, hermes, etc). I want a shared wiki that can be used by many agents at a time, as well as project, task, or agent specific wikis. Ideally I'd like to be able to replace my agent memory plugin (https://github.com/daftdoki/dokidlc-iirc) with it, but that is not required. That memory plugin would only be a subset of what I'd like the wiki to support, and I don't need to strictly replace all of its features.
+
+Follow-up:
+
+> I like the shape of kiwifs. Is there anything else like that with a more open license? ANd I also like Karpathy/s approach: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
