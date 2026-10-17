@@ -1,0 +1,5 @@
+Several agent harnesses can share one wiki today, but no product covers the full goal yet. Every serious option uses markdown files in git as the source of truth, with a rebuildable search index beside them. The turnkey choice is [ai-memory](https://github.com/akitaonrails/ai-memory), which has hooks or MCP integration for about 40 harnesses and workspace/project scopes plus a shared `_global` project. For keeping iirc's trust model, [KiwiFS](https://github.com/kiwifs/kiwifs) is the better substrate: it offers isolated git-backed spaces with ETag concurrency, but it has no harness hooks, so per-harness adapters must be built. The recommendation is to trial ai-memory alongside iirc and not to use fact-extraction memory servers as the wiki itself.
+
+- **ai-memory** (MIT, Rust, v3.1.0): turnkey, but captures memory from session hooks rather than agent-curated pages.
+- **KiwiFS** (BSL 1.1, Go): one git commit per write and per-actor provenance, but requires custom adapters.
+- **Mem0, Graphiti, Cognee, Honcho, Hindsight** are not wikis: they rewrite content into facts or graph edges that cannot be edited like pages.

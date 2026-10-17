@@ -73,3 +73,20 @@ Find wiki/knowledge-base solutions usable by many agent harnesses (Claude Code, 
 - Multi-space: one server, isolated workspaces each with own git repo + index. Every write = atomic git commit; X-Actor header becomes git author.
 - docs/MEMORY.md: conventions for episodic vs semantic memory (`memory_kind`, `memory_status`, `derived-from`, `merged-from`), no built-in LLM consolidation.
 - No hooks/harness adapters: integration is MCP/REST/FUSE only. It's a wiki substrate, not a memory product.
+
+## Pass 2 results: harness integration surfaces
+
+- Common surface reaching every harness: one MCP server (stdio + Streamable HTTP), AGENTS.md, Agent Skills (agentskills.io lists Claude Code, Codex, Gemini CLI, OpenCode, Cursor, Copilot/VS Code, Hermes, OpenClaw). On that surface recall happens only when the model chooses to call a tool.
+- Per-prompt automatic injection (the thing iirc's UserPromptSubmit hook does) is available in: Claude Code (UserPromptSubmit additionalContext; handler types include http and mcp_tool), Codex CLI (UserPromptSubmit/SessionStart additionalContext; hooks must be trusted), Gemini CLI (BeforeAgent additionalContext), Hermes (MemoryProvider.prefetch, or pre_llm_call plugin/shell hook returning {"context":...}; appended to the user message as <memory-context>), OpenClaw (before_prompt_build prependContext), OpenCode (plugin chat/system transform hooks; v1 vs V2 API in flux). Cursor and Copilot: session-start injection only.
+- Hermes: MemoryProvider ABC (agent/memory_provider.py) with prefetch, sync_turn, on_pre_compress, on_memory_write, on_delegation, get_tool_schemas...; ONLY ONE external provider active. Built-in MEMORY.md 2,200 chars + USER.md 1,375 chars. Using pre_llm_call instead avoids taking the slot.
+- OpenClaw ships a bundled memory-wiki plugin with `vault.scope: global | agent` -> per-agent wikis; tools wiki_search/wiki_get/wiki_apply. Good reference design.
+- Codex has opt-in memories in ~/.codex/memories (internal MemoriesBackend trait, not pluggable).
+- Anthropic Managed Agents memory stores: workspace stores mounted at /mnt/memory/<slug>/, read_only or read_write, up to 8 per session, versions, content_sha256 precondition. Closest Anthropic-native model of shared+scoped wiki but only for Managed Agents.
+- Write-back on compaction possible in Claude Code, Codex, Gemini, Hermes, OpenCode, OpenClaw.
+- Dead ends: developers.openai.com/codex now 308s to learn.chatgpt.com; Cursor memories page empty; Antigravity CLI (Gemini CLI successor for free tier) only from third-party sources; OpenCode plugin file moved in V2 layout.
+
+## Synthesis
+
+- Every serious file-native system converged on the same shape: markdown files in git as the source of truth, a rebuildable index beside it (ai-memory, KiwiFS, Letta MemFS, Basic Memory, iirc itself).
+- Two realistic paths: adopt ai-memory (turnkey, cross-harness hooks incl. Hermes, scopes = workspace/project/_global/private, ACLs), or build on a wiki substrate (KiwiFS spaces + If-Match) with thin per-harness adapters carrying iirc's trust model.
+- Extracted-fact servers are the wrong source of truth for a wiki; at most a derived index.
