@@ -1,0 +1,5 @@
+The [simonw/research](https://github.com/simonw/research) README says prompts and transcript links appear in its PRs, but its AGENTS.md never asks for that. Across 10 closed PRs there (and one in daftdoki/research), PRs opened by the `@claude` bot carry the original prompt and a session link, while PRs opened by `@simonw` do not. The write-up attributes this to the "Create PR" button in Claude Code on the [web UI](https://code.claude.com/docs/en/claude-code-on-the-web), which files the PR through the Claude GitHub App after the user reviews the diff. The exact mechanism that writes the body is not confirmed; the variation in formats suggests it is generated per session rather than from a fixed template.
+
+- Claude Code does not auto-file PRs; the user triggers creation after reviewing changes.
+- Codex Cloud and the Copilot coding agent appear to file PRs automatically, each with its own body format.
+- AGENTS.md contains no PR creation or formatting instructions, so the prompt inclusion is a platform feature.
