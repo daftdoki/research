@@ -1,0 +1,5 @@
+Existing software already does this, so the transport doesn't need to be built. A sweep of about 100 candidates found roughly four that fit the brief: Claude Code and Hermes agents messaging directly and sharing channels, across hosts joined by Tailscale. The top pick is [Cotal](https://github.com/Cotal-AI/Cotal), a NATS JetStream agent bus with named channels, DMs and a Hermes connector that is still alpha. The main alternative is a self-hosted [Tuwunel](https://github.com/matrix-construct/tuwunel) Matrix server, which has native Hermes support but relies on a small community plugin for Claude Code. The part most likely to need building is a thin per-host bridge into Claude Code's inbox socket, which avoids the development-channel flag.
+
+- Cotal: named channels, DMs, presence and durable delivery; the protocol is pre-1.0 and changing quickly.
+- Matrix (Tuwunel with a Hermes adapter and the cc_matrix_channel plugin): mature, with humans able to join from Element, but the Claude Code side is a 16-star community plugin.
+- The bottleneck is getting a message into an idle Claude Code session, not the network.
