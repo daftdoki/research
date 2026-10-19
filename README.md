@@ -131,7 +131,31 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 23 research projects
+## 27 research projects
+
+### [Who Generates the PR Text in simonw/research?](https://github.com/daftdoki/research/tree/main/investigate-pr-generation#readme) (2026-10-19 00:09)
+
+The [simonw/research](https://github.com/simonw/research) README says prompts and transcript links appear in its PRs, but its AGENTS.md never asks for that. Across 10 closed PRs there (and one in daftdoki/research), PRs opened by the `@claude` bot carry the original prompt and a session link, while PRs opened by `@simonw` do not. The write-up attributes this to the "Create PR" button in Claude Code on the [web UI](https://code.claude.com/docs/en/claude-code-on-the-web), which files the PR through the Claude GitHub App after the user reviews the diff. The exact mechanism that writes the body is not confirmed; the variation in formats suggests it is generated per session rather than from a fixed template.
+
+- Claude Code does not auto-file PRs; the user triggers creation after reviewing changes.
+- Codex Cloud and the Copilot coding agent appear to file PRs automatically, each with its own body format.
+- AGENTS.md contains no PR creation or formatting instructions, so the prompt inclusion is a platform feature.
+
+### [A Shared Wiki for Many Agent Harnesses](https://github.com/daftdoki/research/tree/main/multi-agent-shared-wiki#readme) (2026-10-17 00:12)
+
+No single product covers the full brief yet, but every serious option keeps markdown in git as the source of truth with a rebuildable search index beside it. The turnkey pick is [ai-memory](https://github.com/akitaonrails/ai-memory) (MIT), which reaches about 40 harnesses through hooks or MCP, though it captures memory from sessions rather than letting agents curate pages. KiwiFS is the closest substrate for keeping iirc's trust model, but its BSL 1.1 licence rules out a forkable open version, so the nearest OSI-licensed match is [SilverBullet](https://github.com/silverbulletmd/silverbullet) (MIT), which needs an MCP wrapper and a forced commit per write. Karpathy's LLM Wiki pattern can serve many agents if the index is generated, the server writes log entries, each space has its own schema file, and every page write checks `If-Match`.
+
+- **ai-memory**: turnkey, with shared and private scopes and a single writer for concurrency.
+- **KiwiFS**: one git commit per write attributed via `X-Actor`, ETag concurrency, but no harness hooks and a BSL licence.
+- **Mem0, Graphiti, Cognee, Honcho, Hindsight**: fact or graph stores, not editable wikis; at most use them as a derived index.
+
+### [Cross-harness agent messaging: Claude Code, Hermes and others in shared channels across a tailnet](https://github.com/daftdoki/research/tree/main/cross-harness-agent-messaging#readme) (2026-10-10 22:31)
+
+Existing software already does this, so the transport doesn't need to be built. A sweep of about 100 candidates found roughly four that fit the brief: Claude Code and Hermes agents messaging directly and sharing channels, across hosts joined by Tailscale. The top pick is [Cotal](https://github.com/Cotal-AI/Cotal), a NATS JetStream agent bus with named channels, DMs and a Hermes connector that is still alpha. The main alternative is a self-hosted [Tuwunel](https://github.com/matrix-construct/tuwunel) Matrix server, which has native Hermes support but relies on a small community plugin for Claude Code. The part most likely to need building is a thin per-host bridge into Claude Code's inbox socket, which avoids the development-channel flag.
+
+- Cotal: named channels, DMs, presence and durable delivery; the protocol is pre-1.0 and changing quickly.
+- Matrix (Tuwunel with a Hermes adapter and the cc_matrix_channel plugin): mature, with humans able to join from Element, but the Claude Code side is a 16-star community plugin.
+- The bottleneck is getting a message into an idle Claude Code session, not the network.
 
 ### [AI agent access to Sonarr, Radarr, SABnzbd and the rest of the *arr stack](https://github.com/daftdoki/research/tree/main/arrstack-ai-agent-access#readme) (2026-10-04 23:59)
 
@@ -162,6 +186,15 @@ Key findings:
 - Observability is the weakest part: no platform offers session replay.
 - [kubernetes-sigs/agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox) is the reference for medium deployments. Homelabs and small teams should default to per-agent disposable VMs with TLS-intercepting egress control outside the boundary.
 
+### [Agent Control Planes That a Short-Lived Local Claude Code Session Can Plug Into](https://github.com/daftdoki/research/tree/main/agent-control-planes-for-ephemeral-claude-code#readme) (2026-09-29 21:30)
+
+No existing product treats short-lived sessions as first-class guests, but three practical patterns enable local Claude Code to connect with centralized agents across projects. [Paperclip](https://github.com/paperclipai/paperclip) comes closest, allowing temporary sessions to authenticate as board members using expiring credentials and call its MCP server or CLI without permanent enrollment. The simplest path uses hosted services like CodeRabbit, Greptile, and Claude Code Review at user scope—setup takes minutes but scatters visibility across vendor dashboards. Building a custom hub via SessionStart/SessionEnd hooks and MCP gives full control but requires handling the 1.5-second SessionEnd timeout and implementing lease expiration.
+
+Key findings:
+- Paperclip's board-key auth and `board prompt --agent` command are the closest match to "guest" access today, though CLI paths are undocumented
+- Easiest start: combine existing review/security services at user scope, pushing config via managed MCP
+- [mcp_agent_mail](https://github.com/Dicklesworthstone/mcp_agent_mail) provides coordination primitives (per-session identity, time-limited file reservations) if building your own hub
+
 ### [Claude Code skills for writing a plain, short project README](https://github.com/daftdoki/research/tree/main/readme-writing-skills-for-claude-code#readme) (2026-09-20 04:58)
 
 To write natural-sounding READMEs in Claude Code, combine two complementary tools rather than searching for one all-in-one solution. The `readme` skill from [johnsyweb/agent-skills](https://github.com/johnsyweb/agent-skills/tree/main/readme) handles structure across all four core asks (what it is, install, use, develop) while keeping small projects lean through source-based inclusion. Pair it with `unslop` for general text cleanup and `docs-doc` from [immagiov4/my-codex-skills](https://github.com/immagiov4/my-codex-skills/tree/main/skills/docs-doc) to remove README-specific AI prose.
@@ -172,7 +205,7 @@ To write natural-sounding READMEs in Claude Code, combine two complementary tool
 
 ### [Agent Memory Systems and the "Dreaming" Turn](https://github.com/daftdoki/research/tree/main/agent-memory-systems-and-dreaming#readme) (2026-09-19 21:28)
 
-"Dreaming" in agent memory is actually three unrelated techniques: consolidation passes shipped by OpenClaw, Anthropic Managed Agents, Letta, and ChatGPT; inference precomputation that breaks even only at 10+ queries per context; and neuroscience metaphors misapplied since retrieval stores have no weights updating. Reading primary sources overturned three central claims now corrected: "Claude Code Auto Dream" does not exist, long context beats retrieval only on accuracy (not cost), and memory-update correctness is the field's bottleneck—even the best system scored 65% on [HaluMem](https://github.com/MemTensor/HaluMem). The practical design conclusion: measure your full-context baseline first, and if you build consolidation, adopt [OpenClaw's](https://github.com/openclaw/openclaw) read/stage/write separation or Anthropic's copy-on-write approach rather than attempting online edits.
+"Dreaming" in agent memory is actually three unrelated techniques: consolidation passes shipped by OpenClaw, Honcho, Anthropic Managed Agents, Letta, and ChatGPT; inference precomputation that breaks even only at 10+ queries per context; and neuroscience metaphors misapplied since retrieval stores have no weights updating. Reading primary sources overturned three central claims now corrected: "Claude Code Auto Dream" does not exist, long context beats retrieval only on accuracy (not cost), and memory-update correctness is the field's bottleneck—even the best system scored 65% on [HaluMem](https://github.com/MemTensor/HaluMem). The practical design conclusion: measure your full-context baseline first, and if you build consolidation, adopt [OpenClaw's](https://github.com/openclaw/openclaw) read/stage/write separation or Anthropic's copy-on-write approach rather than attempting online edits.
 
 - Long context costs 95x more than Mem0 at scale but wins on accuracy up to ~150 conversations; the cost crossover occurs around 50–100 conversations per ConvoMem.
 - Memory-update correctness ranges from 1–65% across production systems, most scoring below 25%; this is where HaluMem revealed the field's core weakness.
