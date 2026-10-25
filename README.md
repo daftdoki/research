@@ -131,7 +131,15 @@ for dirname, _ in subdirs_with_dates:
             readme_path.write_text('\n'.join(new_lines))
 
 ]]]-->
-## 27 research projects
+## 28 research projects
+
+### [API-Driven, Cloud-Style VM Management on QNAP QuTS hero](https://github.com/daftdoki/research/tree/main/qnap-quts-api-vm-management#readme) (2026-10-25 18:25)
+
+No official API exists for creating VMs on a QuTS hero NAS, but Virtualization Station has an undocumented REST API at `/qvs/` that community tools have reverse-engineered. The most current client is [arnstarn/mcp-server-qnap-qvs](https://github.com/arnstarn/mcp-server-qnap-qvs), which covers about 39 operations (create, clone, snapshots, power state) but only builds blank-disk VMs. Only [danisla/qvscli](https://github.com/danisla/qvscli) implements the cloud pattern of image copy plus cloud-init ISO, and it predates VS 4. The practical path is a thin layer that combines the MCP client's auth and endpoints with qvscli's provisioning steps, or LXD's documented API for the experimental qnap-lxd-vm package.
+
+- Virtualization Station's REST API is undocumented, so every VM tool depends on reverse engineering or on `virsh` over SSH.
+- Image-based creation with cloud-init is not maintained in any current tool.
+- REST access requires a QTS admin login, and most clients default to skipping SSL verification.
 
 ### [Who Generates the PR Text in simonw/research?](https://github.com/daftdoki/research/tree/main/investigate-pr-generation#readme) (2026-10-19 00:09)
 
