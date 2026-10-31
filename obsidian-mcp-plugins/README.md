@@ -149,6 +149,7 @@ obsidian-hybrid-search self-reports nDCG@5 of **0.733 vs qmd's 0.659** on the Ob
   - Scores are my judgement, based on public metrics and code reading, not on running the tools.
   - Test counts come from grep.
   - Benchmark figures are self-reported by the projects.
+  - **istefox embedding backends:** GPU is used only through WebGPU, chosen automatically. There is no CUDA, no native ONNX runtime and no device setting. EmbeddingGemma is forced onto the CPU because its WebGPU vectors were wrong. Headless mode is CPU only. There is no API embedding provider (no OpenAI, Ollama or other endpoint setting). If you need GPU or API embeddings, put obsidian-hybrid-search (any OpenAI-compatible endpoint, including Ollama or LM Studio) beside it as the search layer.
   - Known issues to watch: the istefox EmbeddingGemma full rebuild can block the UI for hours (#664), so use MiniLM. TurboVault's vector plugin is 0.x and opt-in (`--plugins`). In TurboVault plain-folder mode, `move_note` does not rewrite links unless you pass `update_backlinks=true`.
 
 ## Files

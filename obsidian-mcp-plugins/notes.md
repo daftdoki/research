@@ -52,3 +52,10 @@ Surprises / dead ends:
 Sensitivity: popularity-heavy weights put Local REST API first; semantic-heavy puts obsidian-hybrid-search first. istefox MCP Connector is #1 or #2 under all three weightings.
 
 Key realisation for the architecture: Claude Code already reads/edits plain markdown natively, and the wiki is a git repo. The MCP layer earns its context cost only for (a) search beyond index.md, (b) link graph / lint queries, (c) link-safe renames. So prefer one write+graph server plus one search server over many overlapping ones.
+
+### Follow-up: can istefox MCP Connector use a GPU or an embedding API? (2026-10-31)
+- GPU: yes, but only through WebGPU and only automatically. `embedder.ts` probes `navigator.gpu.requestAdapter()` once. If an adapter is found it uses onnxruntime-web's WebGPU execution provider, otherwise single-thread WASM on the CPU. I found no CUDA, no native ONNX runtime and no user-facing device setting.
+- CHANGELOG: EmbeddingGemma's WebGPU vectors ranked notes almost at random (1 of 7 test queries found the expected note, against 7 of 7 on WASM), so Gemma is now forced onto WASM. Issue #665 (Gemma on WebGPU writes corrupted vectors, M4) is still open. MiniLM and multilingual-e5 still use WebGPU when it is available.
+- Headless mode: CPU-only MiniLM q8. README says "any GPU backend" is not available there.
+- API embeddings: none. The semantic-search code has no OpenAI, Ollama or base-URL setting. The only other provider is Smart Connections, and Smart Connections moved all API-based models (cloud and local) into its paid Smart Chat Pro plugin (SC README). So an API route through it would need that paid plugin and would also depend on the istefox-to-Smart Connections bridge, which has had bugs (#99, #430).
+- Alternatives that do support APIs: obsidian-hybrid-search (any OpenAI-compatible endpoint, so Ollama, LM Studio, OpenAI or OpenRouter, which also covers a GPU served by Ollama or LM Studio) and markdown-vault-mcp (FastEmbed, Ollama, OpenAI-compatible, Voyage).
