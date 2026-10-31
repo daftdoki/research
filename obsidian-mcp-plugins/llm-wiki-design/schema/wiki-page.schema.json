@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/llm-wiki/wiki-page.schema.json",
+  "title": "LLM wiki page frontmatter: OKF v0.2 profile + memoryfield identity + iirc evidence",
+  "description": "Validates the YAML frontmatter of one wiki page. OKF v0.2 keys keep OKF meaning; memoryfield/iirc keys keep theirs; keys marked 'profile' are additions of this design. Unknown keys are allowed, as OKF requires consumers to tolerate them.",
+  "type": "object",
+  "required": ["type", "title", "summary", "uuid", "scope", "created", "updated"],
+  "additionalProperties": true,
+  "$defs": {
+    "datetime": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})$",
+      "description": "ISO 8601 with explicit offset (OKF §5). Quote it in YAML so it stays a string."
+    },
+    "date": { "type": "string", "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$" },
+    "actor": {
+      "type": "string",
+      "pattern": "^(human:[\\w.-]+|process:[\\w./-]+|agent:[\\w.@#/-]+|[\\w.-]+/[\\w.-]+)$",
+      "description": "OKF actor convention: <producer>/<version>, human:<id>, process:<id>; profile adds agent:<harness>@<host>#<session>."
+    },
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }
+  },
+  "properties": {
+    "type": {
+      "description": "OKF (required there, free text). Profile closes the vocabulary.",
+      "enum": ["Entity", "Concept", "Topic", "Source", "Procedure", "Reference", "Explanation",
+               "Finding", "Decision", "Environment", "Synthesis", "Working Note", "Redirect"]
+    },
+    "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "summary": {
+      "description": "memoryfield/iirc. One or two sentences an agent can judge relevance from. Mirror into OKF 'description'.",
+      "type": "string", "minLength": 10, "maxLength": 400
+    },
+    "description": { "type": "string", "description": "OKF. Same text as summary." },
+    "uuid": {
+      "description": "memoryfield. Never changes on edit or rename; a split gets new uuids; a merge records merged_from.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "aliases": { "type": "array", "items": { "type": "string" }, "description": "Obsidian. Also SKOS altLabel for Topic pages." },
+    "tags": { "type": "array", "items": { "type": "string" }, "description": "OKF/Obsidian. Free tags; prefer topics." },
+    "topics": {
+      "description": "profile. Slugs of Topic pages (SKOS concepts). Most specific topic per facet; hubs roll up 'broader'.",
+      "type": "array", "items": { "$ref": "#/$defs/slug" }, "maxItems": 6
+    },
+    "scope": {
+      "description": "profile. Which space the page lives in and who it concerns.",
+      "type": "object",
+      "required": ["space"],
+      "properties": {
+        "space": { "type": "string", "pattern": "^(commons|private|project:[a-z0-9-]+|agent:[a-z0-9-]+)$" },
+        "project": { "type": "string" },
+        "agent": { "type": "string" },
+        "task": { "type": "string" }
+      }
+    },
+    "created": { "$ref": "#/$defs/datetime" },
+    "updated": { "$ref": "#/$defs/datetime" },
+    "status": {
+      "description": "OKF lifecycle. Writers may set draft only; the librarian promotes to stable.",
+      "enum": ["draft", "stable", "deprecated"]
+    },
+    "conditions": {
+      "description": "memoryfield status vocabulary, moved here to avoid colliding with OKF status.",
+      "type": "array",
+      "items": { "enum": ["provisional", "disputed", "obsolete", "superseded", "refuted"] },
+      "uniqueItems": true
+    },
+    "generated": {
+      "description": "OKF. Who produced the current text.",
+      "type": "object", "required": ["by", "at"],
+      "properties": { "by": { "$ref": "#/$defs/actor" }, "at": { "$ref": "#/$defs/datetime" } }
+    },
+    "verified": {
+      "description": "OKF list; trust tier is derived from it. Server clears it on any content edit. Profile adds rev (git blob the check covered) and method.",
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["by", "at"],
+        "properties": {
+          "by": { "$ref": "#/$defs/actor" },
+          "at": { "$ref": "#/$defs/datetime" },
+          "rev": { "type": "string" },
+          "method": { "enum": ["human-review", "entailment", "check", "fact-check-sample"] }
+        }
+      }
+    },
+    "stale_after": { "$ref": "#/$defs/datetime", "description": "OKF. Set from volatility unless given." },
+    "volatility": {
+      "description": "profile. Sets default stale_after; evidence events mark suspect regardless.",
+      "enum": ["volatile", "versioned", "evolving", "stable", "environment", "historical"]
+    },
+    "applies_to": {
+      "description": "profile. Version ranges a lint job compares against release feeds, e.g. {python: '>=3.12', uv: '>=0.5,<0.6'}.",
+      "type": "object", "additionalProperties": { "type": "string" }
+    },
+    "as_of": { "$ref": "#/$defs/date", "description": "profile (Wikipedia {{as of}}). Date the page's time-sensitive claims describe." },
+    "check": { "type": "string", "description": "iirc. Read-only shell command; non-zero exit marks the page suspect. Runs only after approval." },
+    "resource": { "type": "string", "description": "OKF. The thing this concept is bound to (Source pages: the original URL)." },
+    "same_as": { "type": "array", "items": { "type": "string" }, "description": "profile (schema.org sameAs), e.g. wikidata:Q7259." },
+    "supersedes": { "type": "array", "items": { "type": "string" } },
+    "superseded_by": { "type": ["string", "null"] },
+    "merged_from": { "type": "array", "items": { "type": "string" } },
+    "redirect": { "type": "string", "description": "profile. Only on type: Redirect stubs left by renames/merges." },
+    "promote_to": { "type": "array", "items": { "type": "string" }, "description": "profile. Working notes: pages a finding should be proposed into." },
+    "sources": {
+      "description": "OKF provenance. Profile adds iirc revision, Wikipedia retrieved/archive/url_status, a content hash, a W3C TextQuoteSelector quote, and a registry tier.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["resource"],
+        "properties": {
+          "id": { "type": "string" },
+          "resource": { "type": "string" },
+          "title": { "type": "string" },
+          "author": { "type": "string" },
+          "last_modified": { "$ref": "#/$defs/datetime" },
+          "usage_count": { "type": "integer", "description": "OKF. Ignored for trust in this profile (frequency is exploitable)." },
+          "revision": { "type": "string", "description": "iirc file@sha: git commit the cited file was read at." },
+          "retrieved": { "$ref": "#/$defs/date" },
+          "archive": { "type": "string" },
+          "url_status": { "enum": ["live", "dead", "unfit"] },
+          "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "Hash of the normalized source text when read; drift job re-hashes." },
+          "tier": { "enum": ["T1", "T2", "T3", "T4"] },
+          "quote": {
+            "type": "object", "required": ["exact"],
+            "properties": { "exact": { "type": "string" }, "prefix": { "type": "string" }, "suffix": { "type": "string" } }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "Topic" } } },
+      "then": {
+        "properties": {
+          "broader": { "type": "array", "items": { "$ref": "#/$defs/slug" } },
+          "narrower": { "type": "array", "items": { "$ref": "#/$defs/slug" } },
+          "related": { "type": "array", "items": { "$ref": "#/$defs/slug" } },
+          "facet": { "enum": ["language", "tool", "concept", "domain", "person", "place", "period", "organization", "device", "technique", "ingredient", "other"] },
+          "steward": { "type": "string" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "enum": ["Entity", "Concept", "Reference", "Explanation", "Finding", "Synthesis", "Procedure"] }, "scope": { "properties": { "space": { "const": "commons" } } } } },
+      "then": { "required": ["sources", "volatility"], "properties": { "sources": { "minItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "Working Note" } } },
+      "then": { "required": ["stale_after"], "properties": { "scope": { "required": ["space", "task"] } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "Redirect" } } },
+      "then": { "required": ["redirect"] }
+    }
+  ]
+}

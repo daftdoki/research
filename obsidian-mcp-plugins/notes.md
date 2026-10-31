@@ -59,3 +59,38 @@ Key realisation for the architecture: Claude Code already reads/edits plain mark
 - Headless mode: CPU-only MiniLM q8. README says "any GPU backend" is not available there.
 - API embeddings: none. The semantic-search code has no OpenAI, Ollama or base-URL setting. The only other provider is Smart Connections, and Smart Connections moved all API-based models (cloud and local) into its paid Smart Chat Pro plugin (SC README). So an API route through it would need that paid plugin and would also depend on the istefox-to-Smart Connections bridge, which has had bugs (#99, #430).
 - Alternatives that do support APIs: obsidian-hybrid-search (any OpenAI-compatible endpoint, so Ollama, LM Studio, OpenAI or OpenRouter, which also covers a GPU served by Ollama or LM Studio) and markdown-vault-mcp (FastEmbed, Ollama, OpenAI-compatible, Voyage).
+
+## Expansion: designing our own LLM wiki (2026-10-31)
+
+New request: multi-agent, multi-git-project wiki; cross-cutting topics (e.g. coding notes by language/tool) shared by all agents but general enough for any subject, like Wikipedia; formats (OKF, memoryfield as used by daftdoki/dokidlc-iirc); agent working memory as well as long-term knowledge; verification, source, accuracy and freshness semantics; how agents retrieve, search, publish and organise; centralised, reachable over the network, with a human UI. Off-the-shelf, open source, build-your-own or a mix.
+
+Prior work in this repo to build on rather than redo:
+- `multi-agent-shared-wiki/`: ai-memory (turnkey, MIT), KiwiFS (BSL substrate), SilverBullet (MIT, no MCP), a DIY stack (git per space + qmd + llm-wiki-mcp fork), and four changes Karpathy's pattern needs for many agents (generated index, log written by the server, schema per space, If-Match).
+- `agent-memory-systems-and-dreaming/`: consolidation ("dreaming"), HaluMem shows memory-update correctness is the field's weak spot, frequency must not be a trust signal, copy-on-write consolidation.
+- iirc (read README + HOW-IT-WORKS): memoryfield pages in `.iirc/`; frontmatter is title, summary, topics, kind, check, uuid, created, updated; cites `file@sha`; a page goes suspect when a cited file changes or its `check` fails; age is only a glance note; remote shared stores are git repos; hooks suggest pages on each prompt and failed command. The local `.memory/` pages in this repo show the format.
+
+Plan: five parallel researchers. (A) page formats: OKF, memoryfield and others. (B) verification, provenance and freshness semantics. (C) organization, taxonomy, scoping, publishing workflow. (D) retrieval effectiveness and working memory. (E) platforms: network server, human UI, MCP.
+
+### Expansion results (five researchers + my spot checks)
+- **Formats.** OKF is Google Cloud's Open Knowledge Format: GoogleCloudPlatform/open-knowledge-format, SPEC.md "Version 0.2", Apache-2.0, 1,208★, created 2026-08-11, last push 2026-08-21, one maintainer. Only `type` is required. Provenance is `sources[]` with claims cited by `[^id]` footnotes. `generated{by,at}` and `verified[{by,at}]` give a trust tier that is derived, not stored (unverified, machine-confirmed, human-reviewed). Lifecycle is `status` (draft/stable/deprecated) plus `stale_after`. `index.md` and `log.md` are reserved names, matching Karpathy. Already OKF-native or import/export: ai-memory (14.7k★), markdown-vault-mcp, llm-wiki-compiler, Ar9av/obsidian-wiki, OpenClaw memory-wiki, Basic Memory sources.
+  - **Catch I spotted in SPEC §5.1:** OKF's `sources[].usage_count` is a popularity signal, so our profile must ignore it for trust. The prior memory report found frequency is the signal poisoning exploits.
+  - memoryfield v0.3 is flat with no types, links or provenance, and its `status` is a list. That collides with OKF's scalar `status`, so the memoryfield vocabulary moves to `conditions`. iirc's scalar `verified` becomes OKF's list.
+- **Verification.** Model built from Wikipedia (verifiability, perennial-sources tiers, {{as of}}, pending changes, talk pages), Wikidata ranks and qualifiers, PROV-O names and W3C TextQuoteSelector. Claim-checking research: FActScore, SAFE, VeriScore, ALCE. ALCE found the best models lack full citation support 50% of the time, so an independent verifier is needed. FARMA beats consistency-based poisoning defences, so agreement between pages is not trust.
+- **Organization.** Wikipedia's subpage history shows strict hierarchy failed. Flat page namespace, SKOS topic pages with broader/narrower, most-specific-topic rule, roll-up done by the hub generator. Repo per space because read permission is per repo. Draft/AfC for new shared pages, talk pages, a librarian bot under a bot-approval policy (Wikipedia BAG, Wikidata bots). Project identity by root commit SHA plus remote aliases (my design).
+  - Nice convergence: memoryfield's flat directory rule and Wikipedia's flat mainspace agree.
+- **Retrieval and working memory.** iirc's SEARCH-QUALITY data: only 31/74 prompts had a relevant page, so the push hook must default to silence. Anthropic Contextual Retrieval: -67% retrieval failures with contextual embeddings + BM25 + rerank. Cursor: semantic search +12.5%. Tool Search: Opus 4.5 79.5% to 88.1%. Working memory stays task-scoped (plan/progress/notes/handoff/board) with a TTL and an explicit `propose` to promote. Minimal tool set of 8 `wiki_*` tools.
+- **Platforms.** No single OSS product covers everything. Checked myself:
+  - ai-memory v3.3: web UI is read-only (docs/usage.md "The web UI is read-only").
+  - KiwiFS: BSL, now has editor, graph and content health.
+  - SilverBullet: still no official MCP (#1479 closed).
+  - gosidian: MIT, 3★, created 2026-04, multi-project grants and OAuth. Promising but tiny.
+  - Hatchdoor: AGPL, best UI, single user.
+  - Forgejo/Gitea: gitea-mcp has OAuth and wiki tools; the place to review PRs.
+
+### Building the design artifacts
+- Wrote `llm-wiki-design/schema/wiki-page.schema.json`: the OKF v0.2 profile plus memoryfield/iirc fields plus design additions, with conditional rules (commons knowledge pages need sources and volatility; Working Notes need task and stale_after; Topics get SKOS fields; Redirects need a target).
+- Wrote six example pages: Ada Lovelace entity, no-knead bread recipe, uv topic hub, uv coding finding, Karpathy source page, task working note.
+- Dead end: the heredoc batch hung for 120 s. The cause was a trailing bare `ls` (the alias hang already in `.memory/bash-ls-alias-hangs-and-loop-path.md`). The files had been written; the shell just never returned.
+- `validate_pages.py`, run with `uv run --no-project --with jsonschema --with pyyaml` (ephemeral environment, nothing installed into the project). The first run failed the topic page "uv" because of a 3-character minimum on titles in my schema; fixed by setting the minimum to 1. After the fix all six pass.
+- Added `examples/invalid/unsourced-commons-finding.md`, which fails on all 5 planted errors: unquoted date, `status: verified` (not an OKF lifecycle value), missing sources, missing volatility, and a footnote with no source.
+- Platform decision: the recommended target is the assembled stack plus a gateway we write, because every turnkey option misses identity mapped to git authors, the write gate, or working-memory tools. ai-memory and KiwiFS are offered as two-week pilots; both are OKF-compatible, so the content carries over.

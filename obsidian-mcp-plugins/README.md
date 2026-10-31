@@ -1,4 +1,4 @@
-# Obsidian MCP servers for a Karpathy-style "LLM Wiki" agent architecture
+# Obsidian MCP servers, and a design for a shared LLM wiki for many agents
 
 ## Question / Goal
 
@@ -10,7 +10,69 @@ In that pattern an agent ingests immutable raw sources into an LLM-owned, interl
 - **Query:** search the wiki, then synthesise an answer and file it back as a page.
 - **Lint:** find orphans, missing cross-links, contradictions and stale claims.
 
+This report has two parts:
+
+- **Part 1:** which Obsidian MCP servers and plugins are worth using for that pattern.
+- **Part 2** (a follow-up request): how to build our own LLM wiki, using Karpathy as inspiration only. It must:
+  - serve many agents and many git projects;
+  - share cross-cutting topics, such as coding notes split by language or tool, and stay general enough for any subject, the way Wikipedia is;
+  - cover agent **working memory** as well as long-term knowledge;
+  - carry semantics for verification, sources, accuracy and freshness;
+  - be centralized, reachable over the network, and have a human interface.
+
+  OKF and the memoryfield format used by [iirc](https://github.com/daftdoki/dokidlc-iirc) were inputs, and other formats were on the table.
+
 ## Answer / Summary
+
+### Part 2: a shared LLM wiki for many agents (full design in [`llm-wiki-design/DESIGN.md`](llm-wiki-design/DESIGN.md))
+
+No single product covers the brief today. The design has seven parts.
+
+**1. Storage**
+- Markdown in git is the source of truth, with **one repo per space**: `commons`, `private`, `project-<slug>` and `agent-<id>`. Read permission is enforced per repo.
+- Search indexes, link graphs, `index.md`, `log.md` and topic hubs are all generated and can be rebuilt.
+
+**2. Page format: an OKF v0.2 profile.** OKF is Google Cloud's [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format) (Apache-2.0, about 1.2k★). Six tools already read or write it, ai-memory and markdown-vault-mcp among them.
+- It provides claim-level `[^id]` footnote citations, a derived trust tier, `status` and `stale_after`, and Karpathy's `index.md`/`log.md` as reserved names.
+- The profile adds memoryfield's `uuid`, iirc's `file@sha` and `check` evidence fields, and Wikipedia/Wikidata freshness ideas.
+- Two key collisions are resolved: `status` (OKF's lifecycle) versus `conditions` (memoryfield's list), and the format of `verified`. OKF's popularity signal `usage_count` is ignored for trust.
+- There is a JSON Schema plus a validator. Six example pages pass it, including non-technical ones, and a bad page fails it in five ways.
+
+**3. Organization:** following Wikipedia.
+- **Flat pages.** Wikipedia gave up subpage hierarchies because "articles tend to belong in more than one hierarchy".
+- **Typed SKOS topic pages** (`python`, `uv`, `bread-baking`, `history-of-computing`) with `broader` and `narrower` links. A page tags only its most specific topic, and hubs roll pages up the chain.
+- This is how coding notes are "split by language or tool" without folders, and it works the same way for any domain.
+
+**4. Trust comes from evidence, never popularity**
+- Each claim cites a source pinned by hash and quote, and a **different** agent checks that the source supports the claim.
+- Any edit clears verification.
+- A page goes suspect when a source drifts, a link rots, a `file@sha` changes, a `check` fails, or a release falls outside `applies_to`. Age alone never makes a page suspect.
+- Sources are rated T1–T4 in a human-owned registry, and the wiki itself is T4, so it can never be a source for its own claims.
+- Contradictions are kept as Wikidata-style ranked values, with a talk page. They are never resolved automatically.
+
+**5. Publishing**
+- Each agent has its own git identity.
+- Edits use `If-Match`. New shared pages and new topics go through a draft queue.
+- Sessions that read untrusted input write to pending branches.
+- Disputes go on talk pages.
+- One librarian bot holds the bulk rights, under a written list of approved tasks.
+- Humans review through Forgejo pull requests, and browse and edit in Obsidian or a web UI.
+
+**6. Retrieval**
+- **Pull:** eight `wiki_*` MCP tools, with a trust and freshness envelope on every result, and hybrid search with contextual chunks and a reranker.
+- **Push:** a strict hook that suggests at most 3 pages per prompt, tuned by replaying real prompts. iirc's own data shows most prompts have no relevant page.
+- **Working memory:** `tasks/<id>/` folders (plan, progress, notes for each agent, a shared board, a handoff) with a TTL. Notes reach the wiki only through an explicit, sourced `wiki_propose`.
+
+**7. Platform**
+- **Recommended target, assembled:** Forgejo, plus obsidian-hybrid-search, plus Obsidian or Hatchdoor for humans, plus a thin **wiki gateway we write**. The gateway handles identity, routing to spaces, the write gate and the generated files.
+- **Turnkey alternatives for a two-week pilot:**
+  - **ai-memory** (MIT, OKF-native, but its web UI is read-only);
+  - **KiwiFS** (BSL, the best integrated UI).
+
+  Both use OKF pages, so the content carries over to the assembled build.
+- The roadmap is six phases, and Phase 0 is useful within days: a schema-checked git repo that agents edit on a clone.
+
+### Part 1: Obsidian MCP servers
 
 **Top pick: [MCP Connector by istefox](https://github.com/istefox/obsidian-mcp-connector)**, the community continuation of the now-archived `jacksteamdev/obsidian-mcp-tools`.
 
@@ -49,6 +111,24 @@ For additional and more detailed information see the [research notes](notes.md).
 
 ## Methodology
 
+### Part 2 (design)
+
+1. **Built on earlier reports instead of repeating them:** [multi-agent-shared-wiki](../multi-agent-shared-wiki/README.md) (scopes, harness hooks, ai-memory, KiwiFS, SilverBullet) and [agent-memory-systems-and-dreaming](../agent-memory-systems-and-dreaming/README.md) (consolidation, update correctness, poisoning). Also read iirc's README and `docs/HOW-IT-WORKS.md`, and this repo's own `.memory/` pages as live examples of the format.
+2. **Ran five research tracks in parallel,** each reading primary sources through `gh api` and the web (nothing was installed):
+   - **Formats:** OKF, memoryfield/iirc, and about 12 others.
+   - **Verification and freshness:** Wikipedia policies, the Wikidata statement model, PROV-O, W3C annotations, FActScore/SAFE/VeriScore/ALCE, and poisoning defences.
+   - **Organization and publishing:** MediaWiki namespaces and categories, SKOS, Diátaxis, PARA, Johnny.Decimal, bot policies, and Letta and Managed Agents memory.
+   - **Retrieval and working memory:** Anthropic's engineering posts, Contextual Retrieval, Cursor, Tool Search, iirc's search-quality data, Letta, the memory tool and Codex memories.
+   - **Platforms:** about 30 servers and UIs, with fresh repo metrics.
+3. **Checked the load-bearing claims myself:**
+   - OKF spec version, licence and repo metrics, and its `usage_count` signal (§5.1).
+   - ai-memory's web UI is read-only ("The web UI is read-only" in `docs/usage.md`).
+   - SilverBullet's MCP issue #1479 is closed.
+   - gosidian, KiwiFS, Hatchdoor, vouch and SilverBullet community MCP metrics.
+4. **Wrote a JSON Schema for the page profile** and [`validate_pages.py`](llm-wiki-design/validate_pages.py), which also checks that every `[^id]` footnote resolves. Ran it with `uv run --no-project --with jsonschema --with pyyaml` on six example pages (all pass) and one deliberately bad page (fails on all five planted errors). The first run caught a schema bug: a 3-character minimum on titles rejected the topic page "uv".
+
+### Part 1 (Obsidian MCP servers)
+
 1. **Derived requirements from the gist.** The gist asks for:
    - reliable multi-page writes, ideally section- or frontmatter-level patches
    - search that scales past `index.md` (it suggests qmd)
@@ -72,7 +152,35 @@ For additional and more detailed information see the [research notes](notes.md).
 
 ## Results
 
-### Ranking (default weights, data as of 2026-10-31)
+### Part 2: formats compared
+
+| | OKF v0.2 | memoryfield v0.3 / iirc | OpenClaw memory-wiki | Basic Memory | Vault-LD |
+|---|---|---|---|---|---|
+| Plain markdown + git | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Typed pages | `type` (free text) | iirc `kind` (4 values) | `pageType` | `type` | `rdf:type` |
+| Claim-level provenance | **`[^id]` → `sources[].id`** | page-level `refs` | `claims[].evidence` | `(context)` text | – |
+| Trust | derived tier from `verified[]` | iirc: suspect on evidence | claim `status`, `confidence` | – | – |
+| Freshness | `stale_after`, `generated.at` | **`file@sha` + `check`**, kind-based glance age | `lastRefreshedAt` | timestamps | – |
+| Stable ID / scope | path only | **`uuid`**; iirc stores | `canonicalId` | `permalink` | IRIs |
+| Adoption | **highest** (ai-memory, markdown-vault-mcp, llm-wiki-compiler, obsidian-wiki, OpenClaw import, Basic Memory sources) | iirc + spec author | one product | one product | small |
+
+The design layers OKF (envelope and provenance), memoryfield (identity, size budget, doubt vocabulary) and iirc (evidence-driven staleness), plus Wikipedia/Wikidata ideas (source tiers, `as_of`, ranked statements). The field-by-field origins are in [DESIGN.md §4](llm-wiki-design/DESIGN.md#4-page-format-an-okf-profile).
+
+### Part 2: platforms for the central server and human UI
+
+| Platform | Licence | md + git | Spaces / per-agent auth | MCP | Write concurrency | Human UI | Fit |
+|---|---|---|---|---|---|---|---|
+| [ai-memory](https://github.com/akitaonrails/ai-memory) v3.3 | MIT | ✓ (one git author) | ✓ projects, `_global`, accounts, keys | ✓ + hooks for ~40 harnesses | single writer | **read-only** web: tree, search, graph, history diffs | turnkey; capture-first |
+| [KiwiFS](https://github.com/kiwifs/kiwifs) | BSL 1.1 | ✓ commit per write | ✓ spaces, scoped tokens, OIDC | 62 tools, HTTP | ETag/`If-Match`, drafts | editor, graph, backlinks, content health | best integrated product |
+| [Hatchdoor](https://github.com/BatterWorks/Hatchdoor) | AGPL-3.0 | ✓ git per vault | multi-vault, one user | HTTP | optimistic | **best web UI** (Obsidian-like, graph, Bases) | human UI layer |
+| [Forgejo](https://codeberg.org/forgejo/forgejo) / [gitea-mcp](https://gitea.com/gitea/gitea-mcp) | MIT/GPL | ✓ | ✓ user per agent, teams | ✓ OAuth 2.1 | file `sha` | **PR diffs and review**, history | review layer |
+| [markdown-vault-mcp](https://github.com/pvliesdonk/markdown-vault-mcp) | MIT | ✓ commit per write | one vault per server; OIDC | ✓ OKF tools | etag | MCP Apps views only | per-space engine |
+| [gosidian](https://github.com/daniele-chiappa/gosidian) | MIT | optional git sync | ✓ projects, grants, OAuth 2.1 | 71 tools | not stated | editor, graph, audit | fork candidate (3★) |
+| [SilverBullet](https://github.com/silverbulletmd/silverbullet) | MIT | ✓ (batched commits) | spaces, accounts | **no official MCP** (#1479 closed) | `If-Match` | good editor | UI only |
+
+Ruled out as the central server: Wiki.js 3 (beta; database is the source of truth), BookStack, Outline and Docmost (database-backed), Trilium, AFFiNE, Logseq DB (alpha sync), Gollum (stale), and the personal or local-only Karpathy tools (llm-wiki-compiler, swarmvault, Molio). Details are in DESIGN.md §10 and in [notes](notes.md).
+
+### Part 1: Ranking (default weights, data as of 2026-10-31)
 
 | # | Candidate | Pop | Maint | Quality | Semantic | Wiki fit | **Score** |
 |---|---|---|---|---|---|---|---|
@@ -137,6 +245,18 @@ obsidian-hybrid-search self-reports nDCG@5 of **0.733 vs qmd's 0.659** on the Ob
 
 ## Analysis
 
+### Part 2
+
+- **The format choice matters more than the platform choice.** Every serious platform keeps markdown in git, and OKF is the one format several of them already share. Writing an OKF profile from day one makes ai-memory, KiwiFS, markdown-vault-mcp or our own gateway interchangeable later, and a two-week pilot becomes cheap.
+- **The gaps cluster in one thin layer.** Every turnkey option is missing per-agent identity mapped to git authors, routing to spaces, a write gate that enforces sourcing, or working-memory tools. That layer is small enough to write: the gateway in DESIGN.md §8.4.
+- **Wikipedia's process is the best available guide for many writers.** It covers flat namespaces, most-specific categories, verifiability, perennial sources, drafts, pending changes, talk pages and bot approval. The agent research supplies what Wikipedia doesn't need: independent entailment checks (citations are often attached after the text was written), and structural defences against poisoning, because agreement between agents can be forged.
+- **Caveats:**
+  - The design's thresholds and tiers are proposals, not measurements.
+  - OKF is v0.x with one maintainer.
+  - Several platform details are marked unverified in DESIGN.md §13.
+
+### Part 1
+
 - **Stars mislead in this space.** The most-starred pure server, MarkusPfundstein/mcp-obsidian, is close to unmaintained, has an open security bug and breaks on the current REST API. Several of the best-engineered servers have fewer than 200 stars because they are younger than the January–April 2026 rush of starred repos. For Obsidian plugins, registry download counts are a better popularity signal. That is why istefox (123★, 55.7k downloads) scores above its star count suggests.
 - **"Semantic" in a name proves nothing.** aaronsb's "Semantic Notes Vault MCP" has no embeddings. Smart Connections, the default semantic plugin with 1.26M downloads, has no working MCP path today.
 - **Search vs. maintenance is a real split.** The best retrievers (obsidian-hybrid-search, qmd) are read-only. The best wiki maintainers (istefox, TurboVault, markdown-vault-mcp) have average semantic search: vector-only, static embeddings, or no reranker. Pairing one of each fits Karpathy's own suggestion that a search engine is an optional add-on tool.
@@ -157,6 +277,10 @@ obsidian-hybrid-search self-reports nDCG@5 of **0.733 vs qmd's 0.659** on the Ob
 | File | Purpose |
 |---|---|
 | `README.md` | This report |
+| `llm-wiki-design/DESIGN.md` | Part 2: the full design. Requirements, architecture, storage, format, organization, verification, publishing, retrieval, working memory, platform options, roadmap, iirc, risks, and 41 numbered sources |
+| `llm-wiki-design/schema/wiki-page.schema.json` | JSON Schema (2020-12) for page frontmatter: the OKF v0.2 profile plus memoryfield/iirc fields and this design's additions |
+| `llm-wiki-design/validate_pages.py` | Validates pages against the schema and checks that footnotes resolve (`uv run --no-project --with jsonschema --with pyyaml python validate_pages.py examples/*.md`) |
+| `llm-wiki-design/examples/` | Six valid example pages (entity, recipe, topic hub, coding finding, source, working note) and `invalid/` with one page the write gate must refuse |
 | `notes.md` | Work log: discovery angles, dead ends, verification spot-checks |
 | `repo_metrics.sh` | Pulls GitHub activity and quality signals for a list of repos (`./repo_metrics.sh owner/repo ...`) |
 | `metrics-2026-10-31.tsv` | Output of `repo_metrics.sh` for 35 candidate repos |
@@ -170,3 +294,11 @@ obsidian-hybrid-search self-reports nDCG@5 of **0.733 vs qmd's 0.659** on the Ob
 > Research obsidian mcp plugins that are popular, highly rated, actively maintained, and have good code quality. Good semantic search is a definite advantage. I want to build an architecture for agents based on https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 >
 > Try different angles to find plugins, be broad when trying to locate candidates. Rank them based on my priorities and requirements.
+
+### Follow-up prompts
+
+> Can mcp connector use a GPU for the embedding or an API?
+
+> Expand this research to include more about how we might build an LLM wiki for our usage. It should support multiple agents, multiple git projects, and allow for cross functional topics like coding wiki notes shared by all agents that might be split up by language or tool. Don’t limit it to these topics though, it should be generalizable for all types of information including non-technical just like real Wikipedia isn’t limited. For format and structure I’ve found things like OKF - open knowledge format, and we’re already using memory notes format in our daftdoki/dokidlc-iirc memory plug in. Working memory for an agent is another use case I’m interested in in addition to long term knowledge management and creation. Semantics that help deal with verifying information, sources, accuracy, and freshness are also important. You will also need to research and consider how agents will use this information effectively for retrieval, search, publishing, and organization. Since it will be centralized it should be network accessible and also have a human interface.  Karpathy’s LLM wiki serves as my original inspiration, but we don’t have to strictly adhere to it. Off the shelf, open source projects, and building our own are all options including any combination of those to assemble a working system.
+
+> Other formats are also on the table if your research leads you to others that make more sense.
