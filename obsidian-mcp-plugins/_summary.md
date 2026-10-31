@@ -1,0 +1,5 @@
+Ranking Obsidian MCP servers for a Karpathy-style LLM Wiki agent, the [istefox MCP Connector](https://github.com/istefox/obsidian-mcp-connector) comes out on top. It is the most-downloaded maintained option in the Obsidian community store and combines local semantic search, orphan and broken-link lint tools, link-safe renames and a headless mode. The recommended architecture pairs one write-and-graph server with one dedicated search server instead of stacking overlapping ones, since Claude Code can already edit markdown directly. The study scored 35 candidates on wiki fit, semantic search, maintenance, code quality and popularity, and it flags the most-starred option, mcp-obsidian, as close to unmaintained and affected by an open path-traversal issue.
+
+- Search pairing: [obsidian-hybrid-search](https://github.com/flowing-abyss/obsidian-hybrid-search) (BM25, vectors and cross-encoder rerank) is the strongest retriever, but it is read-only.
+- The istefox connector stays in the top two under every weighting tested.
+- Pin server versions and keep the wiki as plain markdown in git so servers can be swapped later.
