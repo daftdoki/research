@@ -343,6 +343,9 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
 - **Q45** One hard gate by default on the global space: pages written from untrusted input wait for a check before agents can see them?
   - **Answer (2026-10-31):** yes
 
+- **Q46** With new topics gated to the owner, may a page name a topic that is still pending (as links to missing pages already can), with the librarian grouping pending topics so the owner approves or merges them in batches?
+  - **Answer (2026-10-31):** Yes add that. It should also suggest topics to the writer
+
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
   - **Proposal to react to (2026-10-31):** five bundles that make a usable first version on their own:
