@@ -39,3 +39,118 @@ This is my list for now, but it's just a start. Not all of these things need to 
 
 I did not write user stories for the librarian role.
 - optionally being able *(cut off mid-sentence; see open questions)*
+
+---
+
+Everything below this line is a **proposal from Claude** for discussion. Nothing in it is agreed until it moves into the seed list or is marked accepted.
+
+## Proposed: roles beyond the three user types
+
+The three user types hold up as *personas*. Permissions, though, are better attached to **roles**, because one persona can need very different rights. Candidates:
+
+| Persona | Role | Why it may need to be separate |
+|---|---|---|
+| Human | **Owner / admin** | Changes policy, types, permissions, the source registry. Can roll back anything |
+| Human | **Reviewer** | Approves gated changes (H3) without being able to change policy. Matters only if more than one human is involved |
+| Human | **Reader** | Web view and search only (a family member, a collaborator, a public mirror) |
+| AI agent | **Trusted agent** | Normal read and write within its scopes |
+| AI agent | **Quarantined agent** | A session that read untrusted input (web pages, email, files from strangers). Can write drafts only |
+| AI agent | **Subagent** | A short-lived child of another agent. Inherits the parent's identity and scope, or gets a narrower one? |
+| Librarian | **Curator** | Merges, splits, renames, links, promotes, archives |
+| Librarian | **Verifier** | Fact-checks claims. Must be a *different* identity from whoever wrote the page, so nobody grades their own work |
+| (new) | **Service / integration** | Non-LLM writers: an ingest pipeline that drops raw sources, CI that posts build facts, an RSS or release-feed watcher, an importer for iirc or an Obsidian vault |
+| (new) | **Auditor** | Read-only access to the activity log and history (H4, H5) without access to page content in private spaces. Possibly just a human role |
+
+## Draft: librarian stories (v0, to refine after the open questions)
+
+As the librarian, I want to:
+
+**Curation and structure**
+- **L1** review every draft and gated change (H3) against the schema, the type rules and duplicate checks, and approve, request changes with a reason, or reject.
+- **L2** detect near-duplicate pages and propose a merge that keeps one uuid, records `merged_from` and leaves a redirect.
+- **L3** split pages that grow past the size budget or cover two subjects, keeping links valid.
+- **L4** own the topic and type vocabularies: propose new types or topics to a human with evidence (how many pages would use them, what they overlap with), and never create one myself (A5).
+- **L5** keep links healthy: fix broken links, rewrite links after renames (A6), retire unused redirects, and report orphans.
+- **L6** decide which suggested links (A8) are worth adding when an agent didn't add them, so the graph stays curated rather than dense.
+- **L7** regenerate indexes and topic hubs (A9) after changes land.
+
+**Lifecycle**
+- **L8** promote project knowledge to shared knowledge when it proves general (used by a second project, no project-specific paths), generalizing the text and leaving a pointer behind.
+- **L9** enforce ephemerality (A3): expire, archive or delete working pages when their conditions are met, and tell the owning agent first if it is still active.
+- **L10** consolidate working memory into long-term pages at the end of a task, on a branch, for review, never by silently rewriting pages.
+- **L11** archive stale or superseded pages instead of deleting them.
+
+**Trust**
+- **L12** run verification passes: check that sources still say what pages cite them for, find dead links, flag pages whose software versions have moved on.
+- **L13** find contradictions between pages and open a discussion instead of choosing a winner.
+- **L14** handle "inaccurate" reports (A16): check the stated reason, and either confirm (deprecate, fix, or mark disputed) or reject with an explanation.
+- **L15** spot unusual agent behaviour (bursts of writes, mass "inaccurate" reports, edits to many pages from one untrusted session) and quarantine that agent's pending changes for a human.
+
+**Reporting and policy**
+- **L16** give the human a periodic digest: what changed, what's waiting for review, what's suspect, health numbers (orphans, duplicates, unverified share, search quality).
+- **L17** propose changes to agent instructions (A13) and the schema when I see the same mistake repeatedly, for a human to approve.
+- **L18** run schema migrations across all pages when the schema changes, in reviewable batches.
+- **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
+
+## Proposed: stories that seem to be missing
+
+These came up when reading the seed list against DESIGN.md. Accept, reword or drop.
+
+- **G1 (agent) Ingest:** add a raw source (article, PDF, transcript, web clip), have it stored unchanged, and file a summary plus updates to related pages. This is the core of Karpathy's pattern and isn't in the list yet.
+- **G2 (agent) File answers back:** save a good answer to a question as a new page, with its sources.
+- **G3 (agent) Atomic multi-page writes:** an ingest touches 10–15 pages; either all of them land or none do.
+- **G4 (agent) Edit conflicts:** if another agent changed a page since I read it, my write fails with the difference so I can merge, instead of silently overwriting.
+- **G5 (agent) Watch:** be notified (or told at session start) when pages I depend on change or are marked inaccurate.
+- **G6 (agent) Feedback on suggestions:** say "this suggestion wasn't useful" so the suggestion threshold can be tuned (A8, A12).
+- **G7 (agent) Ask:** leave a question for a human on a page's discussion thread when I can't verify something.
+- **G8 (human) Edit in the web view,** not only read (H1).
+- **G9 (human) Review queue:** one place showing everything waiting on me: gated changes, disputes, inaccurate reports, new types or topics.
+- **G10 (human) Bulk rollback:** undo everything one agent did since a given time (H6), not just one page.
+- **G11 (human) Import and export:** bring in existing iirc pages and Obsidian notes; export everything as plain markdown.
+- **G12 (human) Privacy:** make sure private pages never reach agents or indexes that shouldn't see them, and permanently remove something (a secret, personal data) from history when needed.
+- **G13 (human) Backups and restore.**
+- **G14 (human) Browse the graph** visually.
+
+## Open questions
+
+Answers go here as they are settled, with the date.
+
+**Roles and scope**
+- **Q1** How many humans will use this? Just you, or family or collaborators? This decides whether Reviewer and Reader roles matter now.
+- **Q2** Is the librarian an LLM agent with extra rights, a deterministic service (scripts and jobs), or both? Can there be more than one librarian (for example one per area)?
+- **Q3** Should agents be identified per harness (claude-code), per harness per machine (claude-code@nas), or per session? Per session gives the best audit trail (H4) but makes permissions harder.
+- **Q4** Your last line, "- optionally being able", was cut off. What was it going to say?
+
+**Organization (A2, A4, A9)**
+- **Q5** "Knowledge base section", "topic", "area", "project", "personal" and "type" overlap. Which are separate dimensions? A proposal: *space* (who can see it: global, private, project, agent), *area* (PARA long-running responsibility, e.g. homelab, health), *project* (has a goal and an end, may map to one or more git repos), *topic* (subject), *type* (what the page is). Does that match how you think about it?
+- **Q6** Can one page belong to several projects or areas, or exactly one?
+- **Q7** How should a project be identified when it spans several repos, or a repo holds several projects (monorepo)?
+
+**Ephemeral pages and working memory (A3, A14)**
+- **Q8** Which ephemerality conditions do you want? Candidates: a time limit, idle time, task closed, session ended, read once by the recipient, or the owner deletes it.
+- **Q9** When an ephemeral page is cleaned up, should it be gone from version history too, or just hidden and kept for audit? Keeping everything in git makes "cleanup" mean "hidden"; truly deleting means ephemeral pages shouldn't live in git at all.
+- **Q10** "Sharable" with whom: a named agent, any agent on the same task, project or area?
+- **Q11** In A14, "not committed to the repository I'm working on" means the project's code repo, right? The wiki's own store would still be versioned (A15).
+
+**Types (A5)**
+- **Q12** A starting list focused on what a page *is*: knowledge (facts about something), procedure (how to do something), decision (what was chosen and why), reference (lookup material), source (summary of an ingested item), working note (ephemeral), topic (hub). What's missing or wrong? Who approves a new type: only you?
+
+**Links and suggestions (A6, A7, A8)**
+- **Q13** Should a page be allowed to link to a page that doesn't exist yet (Wikipedia's "red links", which show what's missing)? Or must every link resolve on write (A10)?
+- **Q14** Should high-confidence link suggestions ever be added automatically, or always need the writer or librarian to accept them?
+- **Q15** Is there a rough cap on links per page you'd consider sprawl?
+
+**Write validation (A10)**
+- **Q16** How strict is "malformed": should a write with a missing source on a factual claim be rejected, or accepted as a draft with a warning?
+
+**Inaccuracy (A16)**
+- **Q17** Who can mark a page inaccurate: any agent, or only trusted ones? Does it hide the page immediately, or only after the librarian or a human confirms? Hiding immediately lets one misbehaving agent hide good pages.
+- **Q18** Are "inaccurate", "outdated" and "disputed" different states for you?
+
+**Gating (H3, H7)**
+- **Q19** Which changes must wait for a gate, and which can land immediately? For example: new shared pages gated, edits to existing shared pages not; certain types or tags always gated.
+- **Q20** Who passes the gate: you, the librarian, or automated checks alone, depending on the rule? How long can an agent wait for approval before it gives up?
+- **Q21** At what granularity do read-only and no-access rules apply: space, area, topic, type, tag, or single page?
+
+**Priorities**
+- **Q22** If you could only have five of these stories in the first usable version, which five?
