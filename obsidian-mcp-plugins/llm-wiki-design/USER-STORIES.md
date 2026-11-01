@@ -408,10 +408,15 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
 
 **Raised by the simplification to public and repo spaces (D35)**
 - **Q53** What identifies a repo space? Options: the ID in the repo's config file (D19); the git remote URL; the repo's first commit, which survives renames and forks; or a combination. And what happens when a repo is renamed or forked?
+  - **Answer (2026-11-01):** ID in config file
 - **Q54** Does "public" mean visible to all of your agents, or might some of it ever be published outside (a website, other people)? The name suggests the second.
+  - **Answer (2026-11-01):** visible to all agents
 - **Q55** Can an agent working in one repo read another repo's space, for example to answer "what do we know about repo X" (H2)? Proposal: yes, read by default, with D38 rules to restrict it; writes only to the public space and its own repo's space.
+  - **Answer (2026-11-01):** yes to your proposal
 - **Q56** Can a temporary page shared by its identifier (D21) be read by an agent in a different repo, or only within the same repo?
+  - **Answer (2026-11-01):** since repo pages are now readable by all I don’t think we need this
 - **Q57** Where does an agent's working memory go when it isn't working inside any repo (a chat with no checkout)? Options: nowhere for now; a catch-all scratch space; the public space's working memory.
+  - **Answer (2026-11-01):** not supported
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
