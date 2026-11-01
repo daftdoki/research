@@ -73,7 +73,7 @@ Taken from the answers in [Open questions](#open-questions).
 - **D18** Policies are set per space, with sensible defaults (Q32).
 - **D19** To start, a client identifies itself with a client ID from a config file in its repository. The file also names the server and settings. A cryptographically secure identity can come later (Q3).
 - **D20** Temporary pages expire on a time limit, or when their owner deletes them. Other conditions can come later (Q8).
-- **D21** Sharing to start: the owner marks a temporary page as shareable and sends another agent its unique identifier; any agent holding the identifier can read it (Q10).
+- **D21** ~~ Sharing to start: the owner marks a temporary page as shareable and sends another agent its unique identifier; any agent holding the identifier can read it (Q10).~~ *Superseded by D42.*
 - **D22** (revised after review, Q42–Q45) Writes are gated in three named layers:
   - **Structure:** always a hard gate. Malformed writes fail (A10, D16), as do near-miss link names (D12).
   - **Vocabulary:** new types (D6) and new topics are hard-gated to the owner, with the librarian proposing them.
@@ -87,7 +87,7 @@ Taken from the answers in [Open questions](#open-questions).
   The original D22 ("no hard gates by default") is in this file's history.
 - **D29** Pending topics (Q46). A page may name a topic that doesn't exist yet; the write succeeds and the topic joins a pending queue with a count of the pages that want it. A pending name that nearly matches an existing or pending topic still fails with "did you mean" (D12), so variants don't pile up. The librarian groups pending topics and proposes, in batches, to create, merge into an existing topic, or reject; the owner decides. When a topic is approved or merged, the pages that named it are updated to the final name. When it is rejected, the librarian retags those pages to the closest existing topic itself (Q47). The service also suggests existing topics to the writer, on demand and when publishing, with the same high-confidence bar as link suggestions (A8).
 - **D23** The client config file holds no secret; the token lives in an environment variable or the keychain. Harness and session are recorded as unverified labels next to the client ID (Q33).
-- **D24** Agents that receive a shared temporary page can read it but not edit it. The owner can revoke a share (Q34).
+- **D24** ~~ Agents that receive a shared temporary page can read it but not edit it. The owner can revoke a share (Q34).~~ *Superseded by D42.*
 - **D25** What the librarian may do afterwards to a bad page in a widely shared space is configurable. By default it may hide the page, change its status, revert the change, or mark the page for update by its writer with notes about what is wrong (Q35).
 - **D26** Status is as simple as it can be without losing function (Q36). Folding it into one word went too far: review status must survive a page being hidden or retired (Q40).
 - **D27** A failed write gets a clear description of each problem. The writer fixes everything except minor syntax, for which the service may suggest the exact change (Q37).
@@ -105,6 +105,11 @@ Taken from the answers in [Open questions](#open-questions).
 - **D36** A page belongs to exactly one space (Q6). With D35, that means the public space or one repo space.
 - **D37** Link suggestions are never added automatically; the writer or the librarian accepts them (Q14). There is no cap on links per page (Q15).
 - **D38** Read-only and no-access rules apply to whole spaces only, to start (Q21).
+- **D39** A repo space is identified by the ID in the repo's config file (D19), not by its remote URL or commit history (Q53). Renaming or moving a repo doesn't change its space. See Q58 for forks.
+- **D40** "Public" means visible to all of the owner's agents. Nothing is published outside (Q54).
+- **D41** Any agent can read any repo's space, so it can answer "what do we know about repo X" (H2). Space rules (D38) can restrict that. An agent writes only to the public space and its own repo's space (Q55).
+- **D42** Sharing identifiers for temporary pages are dropped (Q56). Working-memory pages are readable by every agent like the rest of their repo's space (D41), so there's nothing to share. This supersedes D21 and D24 and drops G20. A3's "private or sharable" choice no longer applies; see Q59.
+- **D43** Working memory exists only inside repo spaces. An agent working outside any repo has none (Q57).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
 
 ## Proposal: storage (after D5, D11 and D15)
@@ -265,7 +270,7 @@ These came up when reading the seed list against DESIGN.md. Accept, reword or dr
 - **G21 (agent) Learn which of my client's pages need an update** (D25, D31), with the librarian's notes, from my session-start brief or by asking, so I can fix them even if another session wrote them.
 - **G23 (agent) Get topic suggestions** for a page, on demand and when I publish: a few existing topics that clearly fit, so I reuse them instead of inventing new ones (D29).
 - **G22 (agent) Opt in to everything** when I search on purpose, including flagged, untrusted-input and unreviewed pages, with their status shown, for example when investigating a disputed claim.
-- **G20 (agent) Revoke a share** of a temporary page I own, so the identifier stops working before the page expires.
+- **G20 (agent) ~~ Revoke a share** of a temporary page I own, so the identifier stops working before the page expires.~~ *Dropped with D42.*
 - **G19 (human) Change policies in one place:** retention, flag visibility, gates, type definitions, provider and model choices. Policy changes are versioned like pages, so they can be audited and rolled back.
 
 ## Open questions
@@ -417,6 +422,10 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
   - **Answer (2026-11-01):** since repo pages are now readable by all I don’t think we need this
 - **Q57** Where does an agent's working memory go when it isn't working inside any repo (a chat with no checkout)? Options: nowhere for now; a catch-all scratch space; the public space's working memory.
   - **Answer (2026-11-01):** not supported
+
+**Raised by the second round on spaces**
+- **Q58** A fork copies the config file, so the fork and the original would share one repo space. Is that fine, should the owner change the ID after forking, or should the service warn when the same ID shows up from a different remote?
+- **Q59** With D41 and D42, every working-memory page is readable by every agent. Is that fine, or do you still want a private option for scratch notes, as A3 originally asked?
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
