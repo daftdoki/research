@@ -316,6 +316,19 @@ Answers go here as they are settled, with the date.
 
 - **Q41** Does v3 (stored state, review and problems, plus a derived summary) fix the problem without being too complex?
 
+**Review of D22, "no hard gates" (2026-10-31)**
+
+Claude reviewed D22 at the creator's request. Findings: D22 already coexists with hard gates on structure (A10, D16), link names (D12) and types (D6); a content edit resets review, which hides good pages from careful readers; the suggestion hook (A12) pushes unreviewed pages into context without the agent choosing; teaching every agent to read status (A13) is unproven; and a stalled librarian lets unreviewed content pile up unnoticed.
+
+- **Q42** Name three gate layers explicitly: structure (always hard), vocabulary (types and new topics, hard-gated to the owner with the librarian proposing), content review (soft by default, hard per space)?
+  - **Answer (2026-10-31):** yes
+- **Q43** Keep a stable revision: a pointer to each page's last reviewed revision, served to readers who filter for reviewed content while a newer edit waits?
+  - **Answer (2026-10-31):** yes
+- **Q44** Safer surfacing defaults: the suggestion hook and default search leave out pages with an `inaccurate` or `untrusted-input` problem, and the hook favours pages that are at least checked; agents can opt in to everything when searching on purpose?
+  - **Answer (2026-10-31):** yes
+- **Q45** One hard gate by default on the global space: pages written from untrusted input wait for a check before agents can see them?
+  - **Answer (2026-10-31):** yes
+
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
   - **Proposal to react to (2026-10-31):** five bundles that make a usable first version on their own:
