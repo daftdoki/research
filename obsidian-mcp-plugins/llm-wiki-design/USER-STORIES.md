@@ -93,7 +93,7 @@ Taken from the answers in [Open questions](#open-questions).
 - **D27** A failed write gets a clear description of each problem. The writer fixes everything except minor syntax, for which the service may suggest the exact change (Q37).
 - **D28** The first version is the five bundles in the Q22 proposal (Q22).
 - **D30** Status v3 uses five lifecycle values: `active`, `superseded`, `deprecated`, `hidden`, `tombstoned` (Q48).
-- **D31** A writer learns about `update-requested` problems on its pages both ways: listed in the session-start brief for its client, and through a query. Any agent using the same client ID may make the fix (Q38).
+- **D31** A writer learns about `update-requested` problems on its pages both ways: listed in the session-start brief for its client, and through a query. Any agent using the same client ID may make the fix (Q38). A still-active writing session hears sooner, through its prompt hook (A17, proposal below).
 - **D32** A librarian revert undoes only the bad change, keeping later edits (Q39). If later edits conflict with the revert, the latest writer gets an `update-requested` problem describing the bad change and the conflict (Q49).
 - **D33** A factual page without sources is not rejected. It lands with an `unsourced` problem, in every space (Q16).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
@@ -144,6 +144,17 @@ Principles:
 - **Each part has its own identity** (for example `librarian/gatekeeper`, `librarian/verifier`, `librarian/curator`), so the audit log (H4) shows which part did what, and the verifier is never the page's writer.
 - **No back door.** LLM parts act through the same API as agents, with elevated but capped permissions: bulk-edit limits, no policy or type changes, no approving their own proposals.
 - **Pluggable models.** Each LLM worker names the model it runs on, so cheap local models can do triage and stronger ones do verification.
+
+## Proposal: telling the writing session while it's still active (after A17)
+
+A page is most likely to get fixed while the session that wrote it still has the context. So the service tracks which session wrote or changed each page, and pushes problems back to that session while it lives.
+
+- **Who gets told:** the session recorded on the write (D23's session label), for pages it created or changed. If that session has ended, it falls back to D31: the client's session-start brief, or a query.
+- **What counts as needing attention:** any new problem on the page (`update-requested`, `unsourced`, `inaccurate`, `disputed`, `source-changed`, `invalid-hand-edit`), and the page being hidden, deprecated or reverted. Proposed scope: only pages the session wrote; see Q51.
+- **How it arrives:** on the session's next prompt, the prompt hook adds a short notice ahead of any suggested pages. Each line gives the page, the problem and the librarian's note: `wiki: 1 page you wrote needs attention: uv-pip-needs-a-venv (unsourced: claim 2 has no source)`. Each problem is shown once, then again only if it's still open after a set number of prompts.
+- **How the session is known to be alive:** every hook call reaches the service, so a session counts as active while its hooks keep calling. No separate heartbeat is needed.
+- **Speed matters:** checks on pages whose writing session is still active go to the front of the librarian's queue (L31), so problems arrive while the context is still there.
+- **Budget:** these notices are separate from the three suggested pages (A12), but capped (Q50).
 
 ## Proposal: client config and identity (after D19)
 
@@ -215,6 +226,7 @@ As the librarian, I want to:
 - **L26** revert a bad change, or hide a page, when a space's policy allows it (D25), with a reason recorded and the human able to undo my action. A revert undoes only that change and keeps later edits (D32); if later edits conflict with the revert, I give the latest writer an `update-requested` problem describing the bad change and the conflict (Q49), and follow up as in L25.
 - **L27** watch my own review backlog (D22): report how many pages wait for a check and for how long, include it in the digest, and alert the human when it passes the configured limit.
 - **L28** check pages held by the global space's untrusted-input gate (D22) first, so they don't sit invisible for long.
+- **L31** check pages whose writing session is still active ahead of others (A17), so any problem reaches that session while it still has the context to fix it.
 - **L29** batch pending topics (D29): group near-identical requests, gather what the pages that want each topic have in common, and put create, merge and reject proposals to the human in batches, with my recommendation for each.
 - **L30** apply topic decisions (D29): when a pending topic is approved or merged, update every page that named it; when it is rejected, retag the pages to the closest existing topic myself (Q47), recording the change and the reason in each page's history.
 - **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
@@ -241,6 +253,7 @@ These came up when reading the seed list against DESIGN.md. Accept, reword or dr
 - **G16 (human, agent) Read the type definitions** (D6) as pages in the wiki, so agents can check what a page should be before writing it, and the validator and librarian judge pages against the same text.
 - **G17 (human) Restore a tombstoned page** before it is purged (D4).
 - **G18 (agent) Check the status of a flag I raised** (D13): pending, fixed, hidden, rejected with a reason, or escalated.
+- **G24 (agent) Be told in my current session** when a page I wrote or changed in this session gets a problem, on my next prompt, with the librarian's note, so I can fix it while I still have the context (A17).
 - **G21 (agent) Learn which of my client's pages need an update** (D25, D31), with the librarian's notes, from my session-start brief or by asking, so I can fix them even if another session wrote them.
 - **G23 (agent) Get topic suggestions** for a page, on demand and when I publish: a few existing topics that clearly fit, so I reuse them instead of inventing new ones (D29).
 - **G22 (agent) Opt in to everything** when I search on purpose, including flagged, untrusted-input and unreviewed pages, with their status shown, for example when investigating a disputed claim.
@@ -371,6 +384,11 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
 
 - **Q49** When undoing just the bad change (D32) conflicts with later edits to the same part of the page, what should happen: the librarian resolves the conflict itself, hands it to the latest writer as `update-requested`, or escalates to the human?
   - **Answer (2026-10-31):** B
+
+**Raised by A17**
+- **Q50** Do attention notices count against the three suggested pages per prompt (A12), or come on top with their own cap? Proposal: on top, at most 3 notices per prompt, each shown once and then again only if still open after 5 prompts.
+- **Q51** Should a session also be told about problems on pages it only *read and relied on* (for example, a page it used to make a decision is later flagged inaccurate), or only about pages it wrote or changed?
+- **Q52** Should the session-start brief (D31) and these notices also cover temporary pages the session shared with other agents, for example when a share is about to expire?
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
