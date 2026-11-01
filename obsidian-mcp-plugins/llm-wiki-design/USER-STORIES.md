@@ -278,6 +278,7 @@ Answers go here as they are settled, with the date.
 
 **Write validation (A10)**
 - **Q16** How strict is "malformed": should a write with a missing source on a factual claim be rejected, or accepted as a draft with a warning?
+  - **Answer (2026-10-31):** flagged
 
 **Inaccuracy (A16)**
 - **Q17** Who can mark a page inaccurate: any agent, or only trusted ones? Does it hide the page immediately, or only after the librarian or a human confirms? Hiding immediately lets one misbehaving agent hide good pages.
@@ -328,7 +329,9 @@ Answers go here as they are settled, with the date.
 
 **Raised by the fourth answers**
 - **Q38** How does a writer find out its page has an `update-requested` problem? Options: listed in the session-start brief for that client; a query the agent runs; both. If the writing session is long gone, may any agent using the same client ID make the fix?
+  - **Answer (2026-10-31):** both and any with the same id
 - **Q39** When the librarian reverts, does it undo just the bad change, or roll the page back to its last good version (which also drops any later edits)?
+  - **Answer (2026-10-31):** just bad change
 - **Q40** Does the single status word in v2 work for you, or is something missing?
   - **Answer (2026-10-31):** I think the status collapse goes too far. If a page gets hidden or retired we lose the context about review status for example
 
@@ -352,6 +355,9 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
 
 - **Q47** When the human rejects a pending topic, should the librarian retag the affected pages to the closest existing topic itself, or send each page back to its writer with an `update-requested` problem?
   - **Answer (2026-10-31):** a
+
+- **Q48** Should status v3 bring back finer lifecycle values: `active` · `superseded` · `deprecated` · `hidden` · `tombstoned`? Superseded points to a replacement while deprecated is simply no longer right, and hidden (pending review) differs from tombstoned (awaiting purge).
+  - **Answer (2026-10-31):** yes
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
