@@ -216,6 +216,7 @@ Answers go here as they are settled, with the date.
 - **Q3** Should agents be identified per harness (claude-code), per harness per machine (claude-code@nas), or per session? Per session gives the best audit trail (H4) but makes permissions harder.
   - **Answer (2026-10-31):** I'm not settled on the answer to this, but I think by some kind of client ID maybe? Say a config file in a repository that the client uses to identify server, settings, and its ID. Eventually this could be a cryptographically secure ID but probably not to start.
 - **Q4** Your last line, "- optionally being able", was cut off. What was it going to say?
+  - **Answer (2026-10-31):** I don’t remember show me the surrounding text
 
 **Organization (A2, A4, A9)**
 - **Q5** "Knowledge base section", "topic", "area", "project", "personal" and "type" overlap. Which are separate dimensions? A proposal: *space* (who can see it: global, private, project, agent), *area* (PARA long-running responsibility, e.g. homelab, health), *project* (has a goal and an end, may map to one or more git repos), *topic* (subject), *type* (what the page is). Does that match how you think about it?
@@ -282,10 +283,15 @@ Answers go here as they are settled, with the date.
 
 **Raised by the third answers**
 - **Q33** Are you OK with the config file holding no secret, and the token living in an environment variable or the keychain? And with recording harness and session as unverified labels next to the client ID?
+  - **Answer (2026-10-31):** yes split ok
 - **Q34** Can an agent that receives a shared temporary page only read it, or also add to it (a handoff often needs a reply)? Can the owner revoke a share (G20)?
+  - **Answer (2026-10-31):** no edits. Yes can revoke.
 - **Q35** With no hard gates, what may the librarian do afterwards to a bad page in a widely shared space: only change its status, hide it, or revert the change?
+  - **Answer (2026-10-31):** configurable but by default hide, change status, revert, mark for update by the writer with notes about what is wrong.
 - **Q36** Is the three-field status (review, alerts, lifecycle) small enough, or should it be simpler still?
+  - **Answer (2026-10-31):** lets simply to the simplest without compromising function
 - **Q37** With D16, should a failed write's error include the corrected text or a ready-made patch, so the writer can apply the fix in one step?
+  - **Answer (2026-10-31):** clear description of the issue but the writer should fix anything that isn’t minor syntax. Syntax change suggestions are ok.
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
@@ -297,4 +303,5 @@ Answers go here as they are settled, with the date.
     5. **Access and instructions:** A11 and A13 (API and MCP, plus instructions in the agent's context).
 
     Next in line: H1 (web view), A12 (three pages surfaced per prompt), A6 (link updates on rename), A16 (inaccurate flags).
+  - **Answer to the proposal (2026-10-31):** yes that five looks good.
   - **Answer (2026-10-31):** Not sure yet.
