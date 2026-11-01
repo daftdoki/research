@@ -111,6 +111,7 @@ Taken from the answers in [Open questions](#open-questions).
 - **D42** Sharing identifiers for temporary pages are dropped (Q56). Working-memory pages are readable by every agent like the rest of their repo's space (D41), so there's nothing to share. This supersedes D21 and D24 and drops G20. A3's "private or sharable" choice no longer applies: all working memory is visible to every agent (Q59).
 - **D43** Working memory exists only inside repo spaces. An agent working outside any repo has none (Q57).
 - **D44** The untrusted-input gate on the public space (D22) is passed or rejected by the librarian, which escalates to the owner what it can't settle. The write itself succeeds; the page stays invisible to agents until it is checked, so no agent waits on the gate (Q20).
+- **D45** Raw sources (G1) live in whichever space the ingesting agent puts them in: the public space or its repo space (Q61).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
 
 ## Proposal: storage (after D5, D11 and D15)
@@ -246,22 +247,22 @@ As the librarian, I want to:
 - **L32** warn the human when a repo ID arrives from a git remote it hasn't been seen with before (D39), since that usually means a fork or copy is sharing the original's space.
 - **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
 
-## Proposed: stories that seem to be missing
+## Accepted: stories that were missing from the seed list
 
-These came up when reading the seed list against DESIGN.md. Accept, reword or drop.
+These came up when reading the seed list against DESIGN.md. All were accepted on 2026-11-01 (Q60) except G5 (dropped for now) and G20 (dropped with D42); G12 was reworded. Timing: G1, G3 early; G4 in the first version; G6, G7, G8, G11, G14 later.
 
 - **G1 (agent) Ingest:** add a raw source (article, PDF, transcript, web clip), have it stored unchanged, and file a summary plus updates to related pages. This is the core of Karpathy's pattern and isn't in the list yet.
 - **G2 (agent) File answers back:** save a good answer to a question as a new page, with its sources.
 - **G3 (agent) Atomic multi-page writes:** an ingest touches 10–15 pages; either all of them land or none do.
 - **G4 (agent) Edit conflicts:** if another agent changed a page since I read it, my write fails with the difference so I can merge, instead of silently overwriting.
-- **G5 (agent) Watch:** be notified (or told at session start) when pages I depend on change or are marked inaccurate.
+- **G5 (agent)** ~~tch:** be notified (or told at session start) when pages I depend on change or are marked inaccurate.~~ *Dropped for now (Q60).*
 - **G6 (agent) Feedback on suggestions:** say "this suggestion wasn't useful" so the suggestion threshold can be tuned (A8, A12).
 - **G7 (agent) Ask:** leave a question for a human on a page's discussion thread when I can't verify something.
 - **G8 (human) Edit in the web view,** not only read (H1).
 - **G9 (human) Review queue:** one place showing everything waiting on me: gated changes, disputes, inaccurate reports, new types or topics.
 - **G10 (human) Bulk rollback:** undo everything one agent did since a given time (H6), not just one page.
 - **G11 (human) Import and export:** bring in existing iirc pages and Obsidian notes; export everything as plain markdown.
-- **G12 (human) Privacy:** make sure private pages never reach agents or indexes that shouldn't see them, and permanently remove something (a secret, personal data) from history when needed.
+- **G12 (human) Purge:** permanently remove a secret or personal data from a page and its history when needed. *Reworded (Q60); the original, which also covered private pages, is in history.*
 - **G13 (human) Backups and restore.**
 - **G14 (human) Browse the graph** visually.
 - **G15 (agent) Follow a link to a page that doesn't exist yet** and get a useful answer: the pages that link to it, what they say about it, existing pages with similar names, and a way to create it.
@@ -443,6 +444,11 @@ Claude recommended, per story: accept G1 (ingest, early), G2, G3 (early), G4 (fi
   - **Answer (2026-11-01):** Agree with all the G’s.
 - **Q61** Where do G1's raw sources (articles, PDFs, transcripts) live: in the wiki, in the public space or a repo space, or somewhere else with the wiki keeping only summary pages?
   - **Answer (2026-11-01):** About G1 - they live in the space the agent puts them in.
+
+**Raised by raw sources (D45)**
+- **Q62** Can raw sources be binary (PDF, images, audio) as well as text? If so, is there a size limit per file, and should the service extract text from them so they can be searched?
+- **Q63** Are raw sources immutable once stored, so they can only be tombstoned and never edited, as Karpathy has it? And should storing the same source twice (same content hash) point to the existing copy instead of duplicating it?
+- **Q64** Can a page in a repo space cite a raw source stored in the public space, and the other way round? With D41 every agent can read every space, so cross-space citations would work for reading. The question is whether a public page should depend on a repo space's source.
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
