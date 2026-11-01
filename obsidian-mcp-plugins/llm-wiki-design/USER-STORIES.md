@@ -56,7 +56,7 @@ Taken from the answers in [Open questions](#open-questions).
 
 - **D1** One human (Q1). The only human role is owner; reviewer and reader roles are deferred.
 - **D2** The librarian is a responsibility of the service, made of several automatic, always-on parts, not one agent (Q2).
-- **D3** Pages are organized along five separate dimensions: space, area, project, topic, type (Q5).
+- **D3** (revised 2026-11-01, see D35) Pages are organized by space, topic and type. Area and project are deferred. The original five dimensions (space, area, project, topic, type) are in this file's history (Q5, Q7).
 - **D4** Removed pages are tombstoned first: hidden from agents, still visible to the human for a while, purged later (Q9).
 - **D5** **The storage backend is open.** Don't assume git. Versioning, history, diffs and rollback (A15, H5, H6) are features the service provides, whatever it stores pages in (Q9). DESIGN.md assumed git and needs revisiting on this point.
 - **D6** Only the owner creates page types; the librarian may suggest them. Each type gets a written definition used to judge pages (Q12).
@@ -77,7 +77,7 @@ Taken from the answers in [Open questions](#open-questions).
 - **D22** (revised after review, Q42–Q45) Writes are gated in three named layers:
   - **Structure:** always a hard gate. Malformed writes fail (A10, D16), as do near-miss link names (D12).
   - **Vocabulary:** new types (D6) and new topics are hard-gated to the owner, with the librarian proposing them.
-  - **Content review:** soft by default. Changes land immediately and every result carries the page's status. Hard gates stay available per space (H3), with one on by default: in the global space, pages written from untrusted input wait for a check before agents can see them.
+  - **Content review:** soft by default. Changes land immediately and every result carries the page's status. Hard gates stay available per space (H3), with one on by default: in the public space, pages written from untrusted input wait for a check before agents can see them.
 
   Three safeguards come with the soft layer:
   - **Stable revision:** each page keeps a pointer to its last reviewed revision, which readers filtering for reviewed content get while a newer edit waits.
@@ -97,6 +97,14 @@ Taken from the answers in [Open questions](#open-questions).
 - **D32** A librarian revert undoes only the bad change, keeping later edits (Q39). If later edits conflict with the revert, the latest writer gets an `update-requested` problem describing the bad change and the conflict (Q49).
 - **D33** A factual page without sources is not rejected. It lands with an `unsourced` problem, in every space (Q16).
 - **D34** A17 as described in the accepted section "Telling the writing session while it's still active": a still-active session is told, through its prompt hook, about problems on pages it wrote or changed. Notices come on top of the three suggested pages, with their own cap (Q50). Not for pages it only read (Q51), nor for temporary pages it shared (Q52).
+- **D35** (2026-11-01) Two kinds of space for now (Q7):
+  - **public:** knowledge shared with every agent, on any subject.
+  - **repo:** one space per git repository, for knowledge specific to that repo.
+
+  Every repo space also has **working memory**: temporary pages agents can write, share and let expire (A3, A14, D20, D21). Area, project, task, private and per-agent spaces are deferred.
+- **D36** A page belongs to exactly one space (Q6). With D35, that means the public space or one repo space.
+- **D37** Link suggestions are never added automatically; the writer or the librarian accepts them (Q14). There is no cap on links per page (Q15).
+- **D38** Read-only and no-access rules apply to whole spaces only, to start (Q21).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
 
 ## Proposal: storage (after D5, D11 and D15)
@@ -122,7 +130,7 @@ The three user types hold up as *personas*. Permissions, though, are better atta
 | Human | ~~Reviewer~~ (deferred, D1) | Approves gated changes (H3) without being able to change policy. Matters only if more than one human is involved |
 | Human | ~~Reader~~ (deferred, D1) | Web view and search only (a family member, a collaborator, a public mirror) |
 | AI agent | **Trusted agent** | Normal read and write within its scopes |
-| AI agent | **Quarantined agent** | A session that read untrusted input (web pages, email, files from strangers). Its pages carry an `untrusted-input` problem. In the global space they wait for a check before agents can see them (D22); elsewhere they land with the label unless that space's policy gates them |
+| AI agent | **Quarantined agent** | A session that read untrusted input (web pages, email, files from strangers). Its pages carry an `untrusted-input` problem. In the public space they wait for a check before agents can see them (D22); elsewhere they land with the label unless that space's policy gates them |
 | AI agent | **Subagent** | A short-lived child of another agent. Inherits the parent's identity and scope, or gets a narrower one? |
 | Librarian | **Curator** | Merges, splits, renames, links, promotes, archives |
 | Librarian | **Verifier** | Fact-checks claims. Must be a *different* identity from whoever wrote the page, so nobody grades their own work |
@@ -164,8 +172,7 @@ A file in each repository, for example `.wiki/client.toml`:
 ```toml
 server  = "https://wiki.example.ts.net"   # where the service is
 client  = "homelab"                       # client ID, shown in the audit log (H4)
-project = "homelab"                       # default project for pages written from here
-area    = "homelab"                       # default area
+repo    = "homelab"                       # which repo space this repo maps to (D36, Q53)
 # No secrets in this file. The token comes from an environment variable or the OS keychain.
 ```
 
@@ -203,7 +210,7 @@ As the librarian, I want to:
 - **L7** regenerate indexes and topic hubs (A9) after changes land.
 
 **Lifecycle**
-- **L8** promote project knowledge to shared knowledge when it proves general (used by a second project, no project-specific paths), generalizing the text and leaving a pointer behind.
+- **L8** promote repo knowledge to the public space when it proves general (useful in a second repo, no repo-specific paths), generalizing the text and leaving a pointer behind in the repo space.
 - **L9** enforce ephemerality (A3): when a page's conditions are met, tombstone it (D4): hide it from agents, keep it visible to the human, and purge it after a retention period. Tell the owning agent first if it is still active.
 - **L10** consolidate working memory into long-term pages at the end of a task, on a branch, for review, never by silently rewriting pages.
 - **L11** archive stale or superseded pages instead of deleting them; tombstone only what is truly unwanted.
@@ -226,7 +233,7 @@ As the librarian, I want to:
 - **L25** send a bad page back to its writer (D25): add an `update-requested` problem with notes saying what is wrong and what a fix looks like, and follow up if it isn't fixed within a configured time.
 - **L26** revert a bad change, or hide a page, when a space's policy allows it (D25), with a reason recorded and the human able to undo my action. A revert undoes only that change and keeps later edits (D32); if later edits conflict with the revert, I give the latest writer an `update-requested` problem describing the bad change and the conflict (Q49), and follow up as in L25.
 - **L27** watch my own review backlog (D22): report how many pages wait for a check and for how long, include it in the digest, and alert the human when it passes the configured limit.
-- **L28** check pages held by the global space's untrusted-input gate (D22) first, so they don't sit invisible for long.
+- **L28** check pages held by the public space's untrusted-input gate (D22) first, so they don't sit invisible for long.
 - **L31** check pages whose writing session is still active ahead of others (A17), so any problem reaches that session while it still has the context to fix it.
 - **L29** batch pending topics (D29): group near-identical requests, gather what the pages that want each topic have in common, and put create, merge and reject proposals to the human in batches, with my recommendation for each.
 - **L30** apply topic decisions (D29): when a pending topic is approved or merged, update every page that named it; when it is rejected, retag the pages to the closest existing topic myself (Q47), recording the change and the reason in each page's history.
@@ -398,6 +405,13 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
   - **Answer (2026-10-31):** not on read
 - **Q52** Should the session-start brief (D31) and these notices also cover temporary pages the session shared with other agents, for example when a share is about to expire?
   - **Answer (2026-10-31):** no
+
+**Raised by the simplification to public and repo spaces (D35)**
+- **Q53** What identifies a repo space? Options: the ID in the repo's config file (D19); the git remote URL; the repo's first commit, which survives renames and forks; or a combination. And what happens when a repo is renamed or forked?
+- **Q54** Does "public" mean visible to all of your agents, or might some of it ever be published outside (a website, other people)? The name suggests the second.
+- **Q55** Can an agent working in one repo read another repo's space, for example to answer "what do we know about repo X" (H2)? Proposal: yes, read by default, with D38 rules to restrict it; writes only to the public space and its own repo's space.
+- **Q56** Can a temporary page shared by its identifier (D21) be read by an agent in a different repo, or only within the same repo?
+- **Q57** Where does an agent's working memory go when it isn't working inside any repo (a chat with no checkout)? Options: nowhere for now; a catch-all scratch space; the public space's working memory.
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
