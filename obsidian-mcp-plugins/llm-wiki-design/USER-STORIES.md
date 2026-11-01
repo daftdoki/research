@@ -96,6 +96,7 @@ Taken from the answers in [Open questions](#open-questions).
 - **D31** A writer learns about `update-requested` problems on its pages both ways: listed in the session-start brief for its client, and through a query. Any agent using the same client ID may make the fix (Q38). A still-active writing session hears sooner, through its prompt hook (A17, proposal below).
 - **D32** A librarian revert undoes only the bad change, keeping later edits (Q39). If later edits conflict with the revert, the latest writer gets an `update-requested` problem describing the bad change and the conflict (Q49).
 - **D33** A factual page without sources is not rejected. It lands with an `unsourced` problem, in every space (Q16).
+- **D34** A17 as described in the accepted section "Telling the writing session while it's still active": a still-active session is told, through its prompt hook, about problems on pages it wrote or changed. Notices come on top of the three suggested pages, with their own cap (Q50). Not for pages it only read (Q51), nor for temporary pages it shared (Q52).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
 
 ## Proposal: storage (after D5, D11 and D15)
@@ -145,16 +146,16 @@ Principles:
 - **No back door.** LLM parts act through the same API as agents, with elevated but capped permissions: bulk-edit limits, no policy or type changes, no approving their own proposals.
 - **Pluggable models.** Each LLM worker names the model it runs on, so cheap local models can do triage and stronger ones do verification.
 
-## Proposal: telling the writing session while it's still active (after A17)
+## Accepted: telling the writing session while it's still active (A17, D34)
 
 A page is most likely to get fixed while the session that wrote it still has the context. So the service tracks which session wrote or changed each page, and pushes problems back to that session while it lives.
 
 - **Who gets told:** the session recorded on the write (D23's session label), for pages it created or changed. If that session has ended, it falls back to D31: the client's session-start brief, or a query.
-- **What counts as needing attention:** any new problem on the page (`update-requested`, `unsourced`, `inaccurate`, `disputed`, `source-changed`, `invalid-hand-edit`), and the page being hidden, deprecated or reverted. Proposed scope: only pages the session wrote; see Q51.
+- **What counts as needing attention:** any new problem on the page (`update-requested`, `unsourced`, `inaccurate`, `disputed`, `source-changed`, `invalid-hand-edit`), and the page being hidden, deprecated or reverted. Only pages the session wrote or changed, never pages it merely read (Q51). Temporary pages it shared get no notices (Q52).
 - **How it arrives:** on the session's next prompt, the prompt hook adds a short notice ahead of any suggested pages. Each line gives the page, the problem and the librarian's note: `wiki: 1 page you wrote needs attention: uv-pip-needs-a-venv (unsourced: claim 2 has no source)`. Each problem is shown once, then again only if it's still open after a set number of prompts.
 - **How the session is known to be alive:** every hook call reaches the service, so a session counts as active while its hooks keep calling. No separate heartbeat is needed.
 - **Speed matters:** checks on pages whose writing session is still active go to the front of the librarian's queue (L31), so problems arrive while the context is still there.
-- **Budget:** these notices are separate from the three suggested pages (A12), but capped (Q50).
+- **Budget:** these notices come on top of the three suggested pages (A12), with their own cap: by default at most 3 notices per prompt, each shown once and then again only if still open after 5 prompts. Both numbers are configurable (Q50).
 
 ## Proposal: client config and identity (after D19)
 
