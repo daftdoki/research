@@ -44,6 +44,19 @@ I did not write user stories for the librarian role.
 
 Everything below this line is a **proposal from Claude** for discussion. Nothing in it is agreed until it moves into the seed list or is marked accepted.
 
+## Decisions so far
+
+Taken from the answers in [Open questions](#open-questions).
+
+- **D1** One human (Q1). The only human role is owner; reviewer and reader roles are deferred.
+- **D2** The librarian is a responsibility of the service, made of several automatic, always-on parts, not one agent (Q2).
+- **D3** Pages are organized along five separate dimensions: space, area, project, topic, type (Q5).
+- **D4** Removed pages are tombstoned first: hidden from agents, still visible to the human for a while, purged later (Q9).
+- **D5** **The storage backend is open.** Don't assume git. Versioning, history, diffs and rollback (A15, H5, H6) are features the service provides, whatever it stores pages in (Q9). DESIGN.md assumed git and needs revisiting on this point.
+- **D6** Only the owner creates page types; the librarian may suggest them. Each type gets a written definition used to judge pages (Q12).
+- **D7** Links to pages that don't exist yet are allowed. They appear in the graph, and near-duplicate names get reconciled (Q13).
+- **D8** "Inaccurate" flags: the human and the librarian can hide or fix a page immediately; an agent can only flag it with a reason. The librarian reviews flags and escalates to the human what it can't settle. It decides whether to hide the page meanwhile (Q17).
+
 ## Proposed: roles beyond the three user types
 
 The three user types hold up as *personas*. Permissions, though, are better attached to **roles**, because one persona can need very different rights. Candidates:
@@ -51,8 +64,8 @@ The three user types hold up as *personas*. Permissions, though, are better atta
 | Persona | Role | Why it may need to be separate |
 |---|---|---|
 | Human | **Owner / admin** | Changes policy, types, permissions, the source registry. Can roll back anything |
-| Human | **Reviewer** | Approves gated changes (H3) without being able to change policy. Matters only if more than one human is involved |
-| Human | **Reader** | Web view and search only (a family member, a collaborator, a public mirror) |
+| Human | ~~Reviewer~~ (deferred, D1) | Approves gated changes (H3) without being able to change policy. Matters only if more than one human is involved |
+| Human | ~~Reader~~ (deferred, D1) | Web view and search only (a family member, a collaborator, a public mirror) |
 | AI agent | **Trusted agent** | Normal read and write within its scopes |
 | AI agent | **Quarantined agent** | A session that read untrusted input (web pages, email, files from strangers). Can write drafts only |
 | AI agent | **Subagent** | A short-lived child of another agent. Inherits the parent's identity and scope, or gets a narrower one? |
@@ -61,7 +74,24 @@ The three user types hold up as *personas*. Permissions, though, are better atta
 | (new) | **Service / integration** | Non-LLM writers: an ingest pipeline that drops raw sources, CI that posts build facts, an RSS or release-feed watcher, an importer for iirc or an Obsidian vault |
 | (new) | **Auditor** | Read-only access to the activity log and history (H4, H5) without access to page content in private spaces. Possibly just a human role |
 
-## Draft: librarian stories (v0, to refine after the open questions)
+## Proposal: how the librarian is built (after Q2)
+
+The librarian is a role the service plays, made of three kinds of parts:
+
+| Kind | Runs | Examples | Uses an LLM? |
+|---|---|---|---|
+| **Gatekeepers** | Synchronously, on every write | Schema and syntax checks, link resolution and "did you mean" for near-miss link names, type rules, secret scan, permission and gate checks | No. Deterministic, fast, explainable error messages (A10) |
+| **Event workers** | Asynchronously, right after something happens | Review a gated change, verify a new page's sources, triage an "inaccurate" flag, propose links for a new page, reconcile a new wanted-page name | Yes, where judgement is needed |
+| **Sweepers** | On a schedule | Expire ephemeral pages and purge old tombstones, check sources for drift and dead links, find duplicates and contradictions, rebuild indexes, write the digest | Mostly no. LLM only for duplicate and contradiction judgement |
+
+Principles:
+
+- **Deterministic first.** Anything a rule can decide, a rule decides. LLM workers handle judgement only, and their outputs are proposals or reversible actions.
+- **Each part has its own identity** (for example `librarian/gatekeeper`, `librarian/verifier`, `librarian/curator`), so the audit log (H4) shows which part did what, and the verifier is never the page's writer.
+- **No back door.** LLM parts act through the same API as agents, with elevated but capped permissions: bulk-edit limits, no policy or type changes, no approving their own proposals.
+- **Pluggable models.** Each LLM worker names the model it runs on, so cheap local models can do triage and stronger ones do verification.
+
+## Draft: librarian stories (v1, revised after the first answers)
 
 As the librarian, I want to:
 
@@ -76,20 +106,23 @@ As the librarian, I want to:
 
 **Lifecycle**
 - **L8** promote project knowledge to shared knowledge when it proves general (used by a second project, no project-specific paths), generalizing the text and leaving a pointer behind.
-- **L9** enforce ephemerality (A3): expire, archive or delete working pages when their conditions are met, and tell the owning agent first if it is still active.
+- **L9** enforce ephemerality (A3): when a page's conditions are met, tombstone it (D4): hide it from agents, keep it visible to the human, and purge it after a retention period. Tell the owning agent first if it is still active.
 - **L10** consolidate working memory into long-term pages at the end of a task, on a branch, for review, never by silently rewriting pages.
-- **L11** archive stale or superseded pages instead of deleting them.
+- **L11** archive stale or superseded pages instead of deleting them; tombstone only what is truly unwanted.
 
 **Trust**
 - **L12** run verification passes: check that sources still say what pages cite them for, find dead links, flag pages whose software versions have moved on.
 - **L13** find contradictions between pages and open a discussion instead of choosing a winner.
-- **L14** handle "inaccurate" reports (A16): check the stated reason, and either confirm (deprecate, fix, or mark disputed) or reject with an explanation.
+- **L14** triage "inaccurate" flags from agents (A16, D8): check the stated reason against sources, then fix the page, confirm and hide it, reject the flag with an explanation, or escalate to the human. While a flag waits for the human, decide whether to hide the page, and always show a "flagged" warning on it in results.
 - **L15** spot unusual agent behaviour (bursts of writes, mass "inaccurate" reports, edits to many pages from one untrusted session) and quarantine that agent's pending changes for a human.
 
 **Reporting and policy**
 - **L16** give the human a periodic digest: what changed, what's waiting for review, what's suspect, health numbers (orphans, duplicates, unverified share, search quality).
 - **L17** propose changes to agent instructions (A13) and the schema when I see the same mistake repeatedly, for a human to approve.
 - **L18** run schema migrations across all pages when the schema changes, in reviewable batches.
+- **L20** reconcile wanted pages (D7): when different pages link to targets that mean the same thing under different names, pick one name, rewrite the links or record the variant as an alias, and keep a count of how many pages want each missing page.
+- **L21** propose creating a wanted page once enough pages link to it, with a draft built from what the linking pages say about it.
+- **L22** keep type definitions (D6) applied: flag pages that don't fit their type's definition, and gather evidence when a new type might be warranted.
 - **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
 
 ## Proposed: stories that seem to be missing
@@ -110,6 +143,9 @@ These came up when reading the seed list against DESIGN.md. Accept, reword or dr
 - **G12 (human) Privacy:** make sure private pages never reach agents or indexes that shouldn't see them, and permanently remove something (a secret, personal data) from history when needed.
 - **G13 (human) Backups and restore.**
 - **G14 (human) Browse the graph** visually.
+- **G15 (agent) Follow a link to a page that doesn't exist yet** and get a useful answer: the pages that link to it, what they say about it, existing pages with similar names, and a way to create it.
+- **G16 (human, agent) Read the type definitions** (D6) as pages in the wiki, so agents can check what a page should be before writing it, and the validator and librarian judge pages against the same text.
+- **G17 (human) Restore a tombstoned page** before it is purged (D4).
 
 ## Open questions
 
@@ -158,6 +194,15 @@ Answers go here as they are settled, with the date.
 - **Q19** Which changes must wait for a gate, and which can land immediately? For example: new shared pages gated, edits to existing shared pages not; certain types or tags always gated.
 - **Q20** Who passes the gate: you, the librarian, or automated checks alone, depending on the rule? How long can an agent wait for approval before it gives up?
 - **Q21** At what granularity do read-only and no-access rules apply: space, area, topic, type, tag, or single page?
+
+**Raised by the first answers**
+- **Q23** One type per page, or several? Proposal: exactly one. A page that seems to be two types is usually two pages and should be split; area, topic and project already cover the other ways to group it. Agree?
+- **Q24** What should a type definition contain? Proposal: a one-sentence definition, what belongs, what doesn't (with the nearest other type), required fields, and one good and one bad example.
+- **Q25** Tombstone retention: how long before purging, and should it vary? For example 30 days for ephemeral pages, 1 year for retired knowledge. Should purge also remove the page from version history?
+- **Q26** At write time, if a link target closely matches an existing page or alias, should the write fail with "did you mean X?" (strict, A10) or succeed and let the librarian reconcile later?
+- **Q27** While a page carries an unreviewed "inaccurate" flag, should agents still see it, with a warning? Should the flagging agent hear the outcome?
+- **Q28** Any budget for the LLM parts of the librarian: model choice, local vs API, a monthly cost ceiling?
+- **Q29** Since the backend is open (D5), does any of these matter: editing pages with ordinary tools (Obsidian, a text editor, grep) on a local copy; offline access; or is "only through the API and web view" fine?
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
