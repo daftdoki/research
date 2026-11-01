@@ -197,12 +197,19 @@ Answers go here as they are settled, with the date.
 
 **Raised by the first answers**
 - **Q23** One type per page, or several? Proposal: exactly one. A page that seems to be two types is usually two pages and should be split; area, topic and project already cover the other ways to group it. Agree?
+  - **Answer (2026-10-31):** yes, I agree
 - **Q24** What should a type definition contain? Proposal: a one-sentence definition, what belongs, what doesn't (with the nearest other type), required fields, and one good and one bad example.
+  - **Answer (2026-10-31):** yes, I agree
 - **Q25** Tombstone retention: how long before purging, and should it vary? For example 30 days for ephemeral pages, 1 year for retired knowledge. Should purge also remove the page from version history?
+  - **Answer (2026-10-31):** It should be configurable, those seem like reasonable defaults. Purging temporary pages should be removed from version history by default, but that should be configurable.
 - **Q26** At write time, if a link target closely matches an existing page or alias, should the write fail with "did you mean X?" (strict, A10) or succeed and let the librarian reconcile later?
+  - **Answer (2026-10-31):** Fail. Fix on write wherever we can.
 - **Q27** While a page carries an unreviewed "inaccurate" flag, should agents still see it, with a warning? Should the flagging agent hear the outcome?
+  - **Answer (2026-10-31):** Yes, see it with a warning by default. This should be configurable though. See with a warning or hide. The agent that flagged it does not get notified of the outcome. It should be able to check the status though, I think?
 - **Q28** Any budget for the LLM parts of the librarian: model choice, local vs API, a monthly cost ceiling?
+  - **Answer (2026-10-31):** It should use AI through popular APIs and support both local and hosted because they're just an API endpoint. Anthropic and OpenAI style interfaces should be supported to start. Maybe bedrock or others in the future. In the future it might be nice to be able to drive an agent harness for this work so that subscriptions could be used. e.g., driving claude code via json stream.
 - **Q29** Since the backend is open (D5), does any of these matter: editing pages with ordinary tools (Obsidian, a text editor, grep) on a local copy; offline access; or is "only through the API and web view" fine?
+  - **Answer (2026-10-31):** My preference would be that they're simple files easily used elsewhere, but I will entertain other options that provide different/better semantics if it's worth it.
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
