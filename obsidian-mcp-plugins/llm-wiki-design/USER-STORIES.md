@@ -79,6 +79,7 @@ Taken from the answers in [Open questions](#open-questions).
   - **Backlog watch:** the review backlog (how many pages wait, and for how long) is reported, with an alert past a configured limit.
 
   The original D22 ("no hard gates by default") is in this file's history.
+- **D29** Pending topics (Q46). A page may name a topic that doesn't exist yet; the write succeeds and the topic joins a pending queue with a count of the pages that want it. A pending name that nearly matches an existing or pending topic still fails with "did you mean" (D12), so variants don't pile up. The librarian groups pending topics and proposes, in batches, to create, merge into an existing topic, or reject; the owner decides. When a topic is approved or merged, the pages that named it are updated to the final name. The service also suggests existing topics to the writer, on demand and when publishing, with the same high-confidence bar as link suggestions (A8).
 - **D23** The client config file holds no secret; the token lives in an environment variable or the keychain. Harness and session are recorded as unverified labels next to the client ID (Q33).
 - **D24** Agents that receive a shared temporary page can read it but not edit it. The owner can revoke a share (Q34).
 - **D25** What the librarian may do afterwards to a bad page in a widely shared space is configurable. By default it may hide the page, change its status, revert the change, or mark the page for update by its writer with notes about what is wrong (Q35).
@@ -204,6 +205,8 @@ As the librarian, I want to:
 - **L26** revert a bad change, or hide a page, when a space's policy allows it (D25), with a reason recorded and the human able to undo my action.
 - **L27** watch my own review backlog (D22): report how many pages wait for a check and for how long, include it in the digest, and alert the human when it passes the configured limit.
 - **L28** check pages held by the global space's untrusted-input gate (D22) first, so they don't sit invisible for long.
+- **L29** batch pending topics (D29): group near-identical requests, gather what the pages that want each topic have in common, and put create, merge and reject proposals to the human in batches, with my recommendation for each.
+- **L30** apply topic decisions (D29): when a pending topic is approved or merged, update every page that named it; when it is rejected, retag the pages to the closest existing topic or send them back to their writers (Q47).
 - **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
 
 ## Proposed: stories that seem to be missing
@@ -229,6 +232,7 @@ These came up when reading the seed list against DESIGN.md. Accept, reword or dr
 - **G17 (human) Restore a tombstoned page** before it is purged (D4).
 - **G18 (agent) Check the status of a flag I raised** (D13): pending, fixed, hidden, rejected with a reason, or escalated.
 - **G21 (agent) Learn which of my pages need an update** (D25), with the librarian's notes, so I can fix them.
+- **G23 (agent) Get topic suggestions** for a page, on demand and when I publish: a few existing topics that clearly fit, so I reuse them instead of inventing new ones (D29).
 - **G22 (agent) Opt in to everything** when I search on purpose, including flagged, untrusted-input and unreviewed pages, with their status shown, for example when investigating a disputed claim.
 - **G20 (agent) Revoke a share** of a temporary page I own, so the identifier stops working before the page expires.
 - **G19 (human) Change policies in one place:** retention, flag visibility, gates, type definitions, provider and model choices. Policy changes are versioned like pages, so they can be audited and rolled back.
@@ -345,6 +349,8 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
 
 - **Q46** With new topics gated to the owner, may a page name a topic that is still pending (as links to missing pages already can), with the librarian grouping pending topics so the owner approves or merges them in batches?
   - **Answer (2026-10-31):** Yes add that. It should also suggest topics to the writer
+
+- **Q47** When the human rejects a pending topic, should the librarian retag the affected pages to the closest existing topic itself, or send each page back to its writer with an `update-requested` problem?
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
