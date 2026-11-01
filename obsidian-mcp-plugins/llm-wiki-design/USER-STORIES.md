@@ -387,8 +387,11 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
 
 **Raised by A17**
 - **Q50** Do attention notices count against the three suggested pages per prompt (A12), or come on top with their own cap? Proposal: on top, at most 3 notices per prompt, each shown once and then again only if still open after 5 prompts.
+  - **Answer (2026-10-31):** top
 - **Q51** Should a session also be told about problems on pages it only *read and relied on* (for example, a page it used to make a decision is later flagged inaccurate), or only about pages it wrote or changed?
+  - **Answer (2026-10-31):** not on read
 - **Q52** Should the session-start brief (D31) and these notices also cover temporary pages the session shared with other agents, for example when a share is about to expire?
+  - **Answer (2026-10-31):** no
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
