@@ -62,6 +62,13 @@ Taken from the answers in [Open questions](#open-questions).
 - **D12** A link name that nearly matches an existing page or alias fails the write with "did you mean". Problems are fixed at write time wherever possible, not left for later cleanup (Q26).
 - **D13** A page with an unreviewed "inaccurate" flag is shown with a warning by default; configurable to hide instead. The flagging agent isn't notified of the outcome but can look up the flag's status (Q27).
 - **D14** The librarian's AI work goes through API endpoints, local or hosted. Anthropic-style and OpenAI-style APIs first, others such as Bedrock later. Later still, it may drive an agent harness (for example Claude Code over its JSON stream) so subscriptions can be used (Q28).
+- **D16** The service never changes what a writer sends. Every problem fails the write with a precise fix, and the writer applies it (Q30).
+- **D17** Pages may be edited directly on disk, like editing a database by hand. It is an administrative back door, not a normal path, and the editor is responsible for mistakes. A background process eventually finds errors and flags the page. The editor can ask the service to check a page, or tell it the page changed. This doesn't need to be a first-class feature (Q31).
+- **D18** Policies are set per space, with sensible defaults (Q32).
+- **D19** To start, a client identifies itself with a client ID from a config file in its repository. The file also names the server and settings. A cryptographically secure identity can come later (Q3).
+- **D20** Temporary pages expire on a time limit, or when their owner deletes them. Other conditions can come later (Q8).
+- **D21** Sharing to start: the owner marks a temporary page as shareable and sends another agent its unique identifier; any agent holding the identifier can read it (Q10).
+- **D22** No hard gates by default. Changes land immediately, and every result tells the consumer the page's status so it can weigh the information. Gates stay available as a per-space policy (H3), off by default (Q19).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
 
 ## Proposal: storage (after D5, D11 and D15)
@@ -75,7 +82,7 @@ Three of the answers pull against each other: plain files (D15), no git assumpti
 | **Derived data** (search index, embeddings, link graph, wanted-pages counts, indexes and hubs) | A rebuildable side store | None; rebuilt from the pages |
 | **Audit log** (who did what, flags, gate decisions) | Append-only log owned by the service | Is the history |
 
-One consequence needs a decision (Q31): if the files can be edited directly, those edits skip the write checks.
+Direct edits to the files skip the write checks. Per D17 that is accepted as an administrative back door, caught afterwards by L24.
 
 ## Proposed: roles beyond the three user types
 
@@ -87,7 +94,7 @@ The three user types hold up as *personas*. Permissions, though, are better atta
 | Human | ~~Reviewer~~ (deferred, D1) | Approves gated changes (H3) without being able to change policy. Matters only if more than one human is involved |
 | Human | ~~Reader~~ (deferred, D1) | Web view and search only (a family member, a collaborator, a public mirror) |
 | AI agent | **Trusted agent** | Normal read and write within its scopes |
-| AI agent | **Quarantined agent** | A session that read untrusted input (web pages, email, files from strangers). Can write drafts only |
+| AI agent | **Quarantined agent** | A session that read untrusted input (web pages, email, files from strangers). With D22, its pages land but are labelled as written from untrusted input, rather than held as drafts, unless a space's policy gates them |
 | AI agent | **Subagent** | A short-lived child of another agent. Inherits the parent's identity and scope, or gets a narrower one? |
 | Librarian | **Curator** | Merges, splits, renames, links, promotes, archives |
 | Librarian | **Verifier** | Fact-checks claims. Must be a *different* identity from whoever wrote the page, so nobody grades their own work |
@@ -110,6 +117,31 @@ Principles:
 - **Each part has its own identity** (for example `librarian/gatekeeper`, `librarian/verifier`, `librarian/curator`), so the audit log (H4) shows which part did what, and the verifier is never the page's writer.
 - **No back door.** LLM parts act through the same API as agents, with elevated but capped permissions: bulk-edit limits, no policy or type changes, no approving their own proposals.
 - **Pluggable models.** Each LLM worker names the model it runs on, so cheap local models can do triage and stronger ones do verification.
+
+## Proposal: client config and identity (after D19)
+
+A file in each repository, for example `.wiki/client.toml`:
+
+```toml
+server  = "https://wiki.example.ts.net"   # where the service is
+client  = "homelab"                       # client ID, shown in the audit log (H4)
+project = "homelab"                       # default project for pages written from here
+area    = "homelab"                       # default area
+# No secrets in this file. The token comes from an environment variable or the OS keychain.
+```
+
+- **Keep the credential out of the file.** The file gets committed, so if the client ID ever becomes a credential it would leak into git history. Keep the ID a public label and put the secret elsewhere from day one.
+- **Record more than the client ID.** One ID per repo means every agent working in that repo looks the same in the audit log. Each write would therefore also record the harness (claude-code, codex) and session as self-reported labels. They are useful for auditing but not trusted for permissions until identity is cryptographic.
+
+## Proposal: the status every result carries (after D22)
+
+With no gates, status is how consumers judge a page, so it has to be small enough to reason about. Three independent fields:
+
+| Field | Values | Set by |
+|---|---|---|
+| `review` | `unreviewed` · `machine-checked` · `human-reviewed` | Librarian, human; reset to `unreviewed` on any content edit |
+| `alerts` (zero or more) | `flagged-inaccurate` · `disputed` · `suspect` · `untrusted-input` · `file-edit-invalid` | Agents (flag only), librarian, gatekeeper |
+| `lifecycle` | `active` · `superseded` · `deprecated` · `tombstoned` | Librarian, human, owner of a temporary page |
 
 ## Draft: librarian stories (v1, revised after the first answers)
 
@@ -144,7 +176,7 @@ As the librarian, I want to:
 - **L21** propose creating a wanted page once enough pages link to it, with a draft built from what the linking pages say about it.
 - **L22** keep type definitions (D6) applied: flag pages that don't fit their type's definition, and gather evidence when a new type might be warranted.
 - **L23** run my AI work through the configured providers (D14), with a model chosen per job, so cheap or local models do triage and stronger ones do verification, and report what each job cost.
-- **L24** notice changes made directly to the files (if allowed, Q31), validate them like any write, and quarantine any that fail rather than letting them reach agents.
+- **L24** notice changes made directly to the files (D17), validate them like any write, and flag any that fail so agents see the problem in the page's status. Offer the human an administrative command to check a page now or report that it changed.
 - **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
 
 ## Proposed: stories that seem to be missing
@@ -169,6 +201,7 @@ These came up when reading the seed list against DESIGN.md. Accept, reword or dr
 - **G16 (human, agent) Read the type definitions** (D6) as pages in the wiki, so agents can check what a page should be before writing it, and the validator and librarian judge pages against the same text.
 - **G17 (human) Restore a tombstoned page** before it is purged (D4).
 - **G18 (agent) Check the status of a flag I raised** (D13): pending, fixed, hidden, rejected with a reason, or escalated.
+- **G20 (agent) Revoke a share** of a temporary page I own, so the identifier stops working before the page expires.
 - **G19 (human) Change policies in one place:** retention, flag visibility, gates, type definitions, provider and model choices. Policy changes are versioned like pages, so they can be audited and rolled back.
 
 ## Open questions
@@ -247,6 +280,21 @@ Answers go here as they are settled, with the date.
 - **Q32** Is one policy configuration for the whole wiki enough, or do you want overrides per space (for example stricter gates on the global space, looser rules in agent spaces)?
   - **Answer (2026-10-31):** overrides per space, or rather different policies per space with sensible defaults
 
+**Raised by the third answers**
+- **Q33** Are you OK with the config file holding no secret, and the token living in an environment variable or the keychain? And with recording harness and session as unverified labels next to the client ID?
+- **Q34** Can an agent that receives a shared temporary page only read it, or also add to it (a handoff often needs a reply)? Can the owner revoke a share (G20)?
+- **Q35** With no hard gates, what may the librarian do afterwards to a bad page in a widely shared space: only change its status, hide it, or revert the change?
+- **Q36** Is the three-field status (review, alerts, lifecycle) small enough, or should it be simpler still?
+- **Q37** With D16, should a failed write's error include the corrected text or a ready-made patch, so the writer can apply the fix in one step?
+
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
+  - **Proposal to react to (2026-10-31):** five bundles that make a usable first version on their own:
+    1. **Validated writes:** A10 (write checks with precise errors, D16) plus A5 (types, starting list).
+    2. **Search with filters:** A1 and A2 (keyword, fuzzy and semantic search; filter by space, area, project, topic, type).
+    3. **Offload and scope:** A14 and A4 (publish general, project and temporary pages to the service, outside the code repo), with D19 client config.
+    4. **History:** A15, H5 and H6 (versions, change history with who and when, rollback).
+    5. **Access and instructions:** A11 and A13 (API and MCP, plus instructions in the agent's context).
+
+    Next in line: H1 (web view), A12 (three pages surfaced per prompt), A6 (link updates on rename), A16 (inaccurate flags).
   - **Answer (2026-10-31):** Not sure yet.
