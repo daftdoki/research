@@ -110,6 +110,7 @@ Taken from the answers in [Open questions](#open-questions).
 - **D41** Any agent can read any repo's space, so it can answer "what do we know about repo X" (H2). Space rules (D38) can restrict that. An agent writes only to the public space and its own repo's space (Q55).
 - **D42** Sharing identifiers for temporary pages are dropped (Q56). Working-memory pages are readable by every agent like the rest of their repo's space (D41), so there's nothing to share. This supersedes D21 and D24 and drops G20. A3's "private or sharable" choice no longer applies: all working memory is visible to every agent (Q59).
 - **D43** Working memory exists only inside repo spaces. An agent working outside any repo has none (Q57).
+- **D44** The untrusted-input gate on the public space (D22) is passed or rejected by the librarian, which escalates to the owner what it can't settle. The write itself succeeds; the page stays invisible to agents until it is checked, so no agent waits on the gate (Q20).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
 
 ## Proposal: storage (after D5, D11 and D15)
@@ -304,6 +305,7 @@ Answers go here as they are settled, with the date.
 - **Q10** "Sharable" with whom: a named agent, any agent on the same task, project or area?
   - **Answer (2026-10-31):** To start any agent, perhaps it marks it as accessible to others then can send them a unique identifier they can use to access it.
 - **Q11** In A14, "not committed to the repository I'm working on" means the project's code repo, right? The wiki's own store would still be versioned (A15).
+  - **Answer (2026-11-01):** agree (with Claude's proposed closing: it means the agent's code repo; the wiki keeps its own history, D5)
 
 **Types (A5)**
 - **Q12** A starting list focused on what a page *is*: knowledge (facts about something), procedure (how to do something), decision (what was chosen and why), reference (lookup material), source (summary of an ingested item), working note (ephemeral), topic (hub). What's missing or wrong? Who approves a new type: only you?
@@ -325,11 +327,13 @@ Answers go here as they are settled, with the date.
 - **Q17** Who can mark a page inaccurate: any agent, or only trusted ones? Does it hide the page immediately, or only after the librarian or a human confirms? Hiding immediately lets one misbehaving agent hide good pages.
   - **Answer (2026-10-31):** A human, librarian, or an agent. A human and a librarian should be able to make hidden immediately, or fix it so that it is accurate. An agent should be able to flag it as innacurate with a reason and then have that reviewed by a librarian next. If the librarian can't handle it, then it could be escalated to a human. The librarian can choose whether to hide it or not while it is pending human review.
 - **Q18** Are "inaccurate", "outdated" and "disputed" different states for you?
+  - **Answer (2026-11-01):** agree (with Claude's proposed closing: already separate in status v3: inaccurate and disputed are problem kinds; outdated is a source-changed problem or the deprecated state)
 
 **Gating (H3, H7)**
 - **Q19** Which changes must wait for a gate, and which can land immediately? For example: new shared pages gated, edits to existing shared pages not; certain types or tags always gated.
   - **Answer (2026-10-31):** I think to start, and by default, no hard gate but consumers should always know its status so they can use that when reasoning about the information.
 - **Q20** Who passes the gate: you, the librarian, or automated checks alone, depending on the rule? How long can an agent wait for approval before it gives up?
+  - **Answer (2026-11-01):** agree (with Claude's proposed closing: for the default untrusted-input gate on the public space, the librarian passes or rejects and escalates what it can't settle to the owner; the write succeeds and the page stays invisible until checked, so agents don't wait)
 - **Q21** At what granularity do read-only and no-access rules apply: space, area, topic, type, tag, or single page?
   - **Answer (2026-11-01):** start with space only
 
@@ -378,6 +382,7 @@ Answers go here as they are settled, with the date.
   - **Answer (2026-10-31):** I think the status collapse goes too far. If a page gets hidden or retired we lose the context about review status for example
 
 - **Q41** Does v3 (stored state, review and problems, plus a derived summary) fix the problem without being too complex?
+  - **Answer (2026-11-01):** agree (with Claude's proposed closing: status v3 as amended by D30 is the model in use)
 
 **Review of D22, "no hard gates" (2026-10-31)**
 
