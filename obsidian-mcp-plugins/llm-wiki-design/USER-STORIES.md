@@ -105,10 +105,10 @@ Taken from the answers in [Open questions](#open-questions).
 - **D36** A page belongs to exactly one space (Q6). With D35, that means the public space or one repo space.
 - **D37** Link suggestions are never added automatically; the writer or the librarian accepts them (Q14). There is no cap on links per page (Q15).
 - **D38** Read-only and no-access rules apply to whole spaces only, to start (Q21).
-- **D39** A repo space is identified by the ID in the repo's config file (D19), not by its remote URL or commit history (Q53). Renaming or moving a repo doesn't change its space. See Q58 for forks.
+- **D39** A repo space is identified by the ID in the repo's config file (D19), not by its remote URL or commit history (Q53). Renaming or moving a repo doesn't change its space. Because a fork copies the config file, the service warns when a known ID arrives from a different git remote (Q58).
 - **D40** "Public" means visible to all of the owner's agents. Nothing is published outside (Q54).
 - **D41** Any agent can read any repo's space, so it can answer "what do we know about repo X" (H2). Space rules (D38) can restrict that. An agent writes only to the public space and its own repo's space (Q55).
-- **D42** Sharing identifiers for temporary pages are dropped (Q56). Working-memory pages are readable by every agent like the rest of their repo's space (D41), so there's nothing to share. This supersedes D21 and D24 and drops G20. A3's "private or sharable" choice no longer applies; see Q59.
+- **D42** Sharing identifiers for temporary pages are dropped (Q56). Working-memory pages are readable by every agent like the rest of their repo's space (D41), so there's nothing to share. This supersedes D21 and D24 and drops G20. A3's "private or sharable" choice no longer applies: all working memory is visible to every agent (Q59).
 - **D43** Working memory exists only inside repo spaces. An agent working outside any repo has none (Q57).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
 
@@ -242,6 +242,7 @@ As the librarian, I want to:
 - **L31** check pages whose writing session is still active ahead of others (A17), so any problem reaches that session while it still has the context to fix it.
 - **L29** batch pending topics (D29): group near-identical requests, gather what the pages that want each topic have in common, and put create, merge and reject proposals to the human in batches, with my recommendation for each.
 - **L30** apply topic decisions (D29): when a pending topic is approved or merged, update every page that named it; when it is rejected, retag the pages to the closest existing topic myself (Q47), recording the change and the reason in each page's history.
+- **L32** warn the human when a repo ID arrives from a git remote it hasn't been seen with before (D39), since that usually means a fork or copy is sharing the original's space.
 - **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
 
 ## Proposed: stories that seem to be missing
