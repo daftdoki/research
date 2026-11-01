@@ -88,7 +88,7 @@ Taken from the answers in [Open questions](#open-questions).
 - **D28** The first version is the five bundles in the Q22 proposal (Q22).
 - **D30** Status v3 uses five lifecycle values: `active`, `superseded`, `deprecated`, `hidden`, `tombstoned` (Q48).
 - **D31** A writer learns about `update-requested` problems on its pages both ways: listed in the session-start brief for its client, and through a query. Any agent using the same client ID may make the fix (Q38).
-- **D32** A librarian revert undoes only the bad change, keeping later edits (Q39).
+- **D32** A librarian revert undoes only the bad change, keeping later edits (Q39). If later edits conflict with the revert, the latest writer gets an `update-requested` problem describing the bad change and the conflict (Q49).
 - **D33** A factual page without sources is not rejected. It lands with an `unsourced` problem, in every space (Q16).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
 
@@ -206,7 +206,7 @@ As the librarian, I want to:
 - **L23** run my AI work through the configured providers (D14), with a model chosen per job, so cheap or local models do triage and stronger ones do verification, and report what each job cost.
 - **L24** notice changes made directly to the files (D17), validate them like any write, and flag any that fail so agents see the problem in the page's status. Offer the human an administrative command to check a page now or report that it changed.
 - **L25** send a bad page back to its writer (D25): add an `update-requested` problem with notes saying what is wrong and what a fix looks like, and follow up if it isn't fixed within a configured time.
-- **L26** revert a bad change, or hide a page, when a space's policy allows it (D25), with a reason recorded and the human able to undo my action. A revert undoes only that change and keeps later edits (D32); if later edits conflict with the revert, see Q49.
+- **L26** revert a bad change, or hide a page, when a space's policy allows it (D25), with a reason recorded and the human able to undo my action. A revert undoes only that change and keeps later edits (D32); if later edits conflict with the revert, I give the latest writer an `update-requested` problem describing the bad change and the conflict (Q49), and follow up as in L25.
 - **L27** watch my own review backlog (D22): report how many pages wait for a check and for how long, include it in the digest, and alert the human when it passes the configured limit.
 - **L28** check pages held by the global space's untrusted-input gate (D22) first, so they don't sit invisible for long.
 - **L29** batch pending topics (D29): group near-identical requests, gather what the pages that want each topic have in common, and put create, merge and reject proposals to the human in batches, with my recommendation for each.
