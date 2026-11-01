@@ -69,6 +69,12 @@ Taken from the answers in [Open questions](#open-questions).
 - **D20** Temporary pages expire on a time limit, or when their owner deletes them. Other conditions can come later (Q8).
 - **D21** Sharing to start: the owner marks a temporary page as shareable and sends another agent its unique identifier; any agent holding the identifier can read it (Q10).
 - **D22** No hard gates by default. Changes land immediately, and every result tells the consumer the page's status so it can weigh the information. Gates stay available as a per-space policy (H3), off by default (Q19).
+- **D23** The client config file holds no secret; the token lives in an environment variable or the keychain. Harness and session are recorded as unverified labels next to the client ID (Q33).
+- **D24** Agents that receive a shared temporary page can read it but not edit it. The owner can revoke a share (Q34).
+- **D25** What the librarian may do afterwards to a bad page in a widely shared space is configurable. By default it may hide the page, change its status, revert the change, or mark the page for update by its writer with notes about what is wrong (Q35).
+- **D26** Status is as simple as it can be without losing function (Q36).
+- **D27** A failed write gets a clear description of each problem. The writer fixes everything except minor syntax, for which the service may suggest the exact change (Q37).
+- **D28** The first version is the five bundles in the Q22 proposal (Q22).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
 
 ## Proposal: storage (after D5, D11 and D15)
@@ -133,15 +139,21 @@ area    = "homelab"                       # default area
 - **Keep the credential out of the file.** The file gets committed, so if the client ID ever becomes a credential it would leak into git history. Keep the ID a public label and put the secret elsewhere from day one.
 - **Record more than the client ID.** One ID per repo means every agent working in that repo looks the same in the audit log. Each write would therefore also record the harness (claude-code, codex) and session as self-reported labels. They are useful for auditing but not trusted for permissions until identity is cryptographic.
 
-## Proposal: the status every result carries (after D22)
+## Proposal: the status every result carries (v2, simplified after D26)
 
-With no gates, status is how consumers judge a page, so it has to be small enough to reason about. Three independent fields:
+The earlier three-field version is in this file's history. This version gives every page **one status word plus a list of reasons**. Consumers reason over the word; the reasons say why. Exactly one word applies, picked by the first match in this order:
 
-| Field | Values | Set by |
+| Status | Meaning | Who sets it |
 |---|---|---|
-| `review` | `unreviewed` · `machine-checked` · `human-reviewed` | Librarian, human; reset to `unreviewed` on any content edit |
-| `alerts` (zero or more) | `flagged-inaccurate` · `disputed` · `suspect` · `untrusted-input` · `file-edit-invalid` | Agents (flag only), librarian, gatekeeper |
-| `lifecycle` | `active` · `superseded` · `deprecated` · `tombstoned` | Librarian, human, owner of a temporary page |
+| `hidden` | Tombstoned or hidden by the librarian or human. Agents never see it; the human can | Librarian, human, expiry |
+| `retired` | Superseded or deprecated; the reasons name the replacement, if any | Librarian, human |
+| `needs-update` | Sent back to its writer with notes (D25) | Librarian, human |
+| `flagged` | Has an open problem: an inaccurate flag, a dispute, a source that changed, written from untrusted input, an invalid hand edit | Agents (inaccurate flags only), librarian, gatekeeper |
+| `reviewed` | Checked by the human | Human |
+| `checked` | Checked by the librarian's verifier | Librarian |
+| `unreviewed` | Nobody has checked it since it last changed | Default after any content edit |
+
+A page can be both human-reviewed and flagged. It then shows `flagged`, and the full detail is in the reasons and the page history. That trades a little detail in the one word for something an agent can act on at a glance.
 
 ## Draft: librarian stories (v1, revised after the first answers)
 
@@ -177,6 +189,8 @@ As the librarian, I want to:
 - **L22** keep type definitions (D6) applied: flag pages that don't fit their type's definition, and gather evidence when a new type might be warranted.
 - **L23** run my AI work through the configured providers (D14), with a model chosen per job, so cheap or local models do triage and stronger ones do verification, and report what each job cost.
 - **L24** notice changes made directly to the files (D17), validate them like any write, and flag any that fail so agents see the problem in the page's status. Offer the human an administrative command to check a page now or report that it changed.
+- **L25** send a bad page back to its writer (D25): set it to `needs-update` with notes saying what is wrong and what a fix looks like, and follow up if it isn't fixed within a configured time.
+- **L26** revert a bad change, or hide a page, when a space's policy allows it (D25), with a reason recorded and the human able to undo my action.
 - **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
 
 ## Proposed: stories that seem to be missing
@@ -201,6 +215,7 @@ These came up when reading the seed list against DESIGN.md. Accept, reword or dr
 - **G16 (human, agent) Read the type definitions** (D6) as pages in the wiki, so agents can check what a page should be before writing it, and the validator and librarian judge pages against the same text.
 - **G17 (human) Restore a tombstoned page** before it is purged (D4).
 - **G18 (agent) Check the status of a flag I raised** (D13): pending, fixed, hidden, rejected with a reason, or escalated.
+- **G21 (agent) Learn which of my pages need an update** (D25), with the librarian's notes, so I can fix them.
 - **G20 (agent) Revoke a share** of a temporary page I own, so the identifier stops working before the page expires.
 - **G19 (human) Change policies in one place:** retention, flag visibility, gates, type definitions, provider and model choices. Policy changes are versioned like pages, so they can be audited and rolled back.
 
@@ -292,6 +307,11 @@ Answers go here as they are settled, with the date.
   - **Answer (2026-10-31):** lets simply to the simplest without compromising function
 - **Q37** With D16, should a failed write's error include the corrected text or a ready-made patch, so the writer can apply the fix in one step?
   - **Answer (2026-10-31):** clear description of the issue but the writer should fix anything that isn’t minor syntax. Syntax change suggestions are ok.
+
+**Raised by the fourth answers**
+- **Q38** How does a writer find out its page was marked `needs-update`? Options: listed in the session-start brief for that client; a query the agent runs; both. If the writing session is long gone, may any agent using the same client ID make the fix?
+- **Q39** When the librarian reverts, does it undo just the bad change, or roll the page back to its last good version (which also drops any later edits)?
+- **Q40** Does the single status word in v2 work for you, or is something missing?
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
