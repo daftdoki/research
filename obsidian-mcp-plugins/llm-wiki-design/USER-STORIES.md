@@ -68,7 +68,17 @@ Taken from the answers in [Open questions](#open-questions).
 - **D19** To start, a client identifies itself with a client ID from a config file in its repository. The file also names the server and settings. A cryptographically secure identity can come later (Q3).
 - **D20** Temporary pages expire on a time limit, or when their owner deletes them. Other conditions can come later (Q8).
 - **D21** Sharing to start: the owner marks a temporary page as shareable and sends another agent its unique identifier; any agent holding the identifier can read it (Q10).
-- **D22** No hard gates by default. Changes land immediately, and every result tells the consumer the page's status so it can weigh the information. Gates stay available as a per-space policy (H3), off by default (Q19).
+- **D22** (revised after review, Q42–Q45) Writes are gated in three named layers:
+  - **Structure:** always a hard gate. Malformed writes fail (A10, D16), as do near-miss link names (D12).
+  - **Vocabulary:** new types (D6) and new topics are hard-gated to the owner, with the librarian proposing them.
+  - **Content review:** soft by default. Changes land immediately and every result carries the page's status. Hard gates stay available per space (H3), with one on by default: in the global space, pages written from untrusted input wait for a check before agents can see them.
+
+  Three safeguards come with the soft layer:
+  - **Stable revision:** each page keeps a pointer to its last reviewed revision, which readers filtering for reviewed content get while a newer edit waits.
+  - **Safer surfacing defaults:** the suggestion hook (A12) and default search leave out pages with an `inaccurate` or `untrusted-input` problem, and the hook favours pages that are at least checked. Agents can opt in to everything when searching on purpose.
+  - **Backlog watch:** the review backlog (how many pages wait, and for how long) is reported, with an alert past a configured limit.
+
+  The original D22 ("no hard gates by default") is in this file's history.
 - **D23** The client config file holds no secret; the token lives in an environment variable or the keychain. Harness and session are recorded as unverified labels next to the client ID (Q33).
 - **D24** Agents that receive a shared temporary page can read it but not edit it. The owner can revoke a share (Q34).
 - **D25** What the librarian may do afterwards to a bad page in a widely shared space is configurable. By default it may hide the page, change its status, revert the change, or mark the page for update by its writer with notes about what is wrong (Q35).
@@ -100,7 +110,7 @@ The three user types hold up as *personas*. Permissions, though, are better atta
 | Human | ~~Reviewer~~ (deferred, D1) | Approves gated changes (H3) without being able to change policy. Matters only if more than one human is involved |
 | Human | ~~Reader~~ (deferred, D1) | Web view and search only (a family member, a collaborator, a public mirror) |
 | AI agent | **Trusted agent** | Normal read and write within its scopes |
-| AI agent | **Quarantined agent** | A session that read untrusted input (web pages, email, files from strangers). With D22, its pages land but are labelled as written from untrusted input, rather than held as drafts, unless a space's policy gates them |
+| AI agent | **Quarantined agent** | A session that read untrusted input (web pages, email, files from strangers). Its pages carry an `untrusted-input` problem. In the global space they wait for a check before agents can see them (D22); elsewhere they land with the label unless that space's policy gates them |
 | AI agent | **Subagent** | A short-lived child of another agent. Inherits the parent's identity and scope, or gets a narrower one? |
 | Librarian | **Curator** | Merges, splits, renames, links, promotes, archives |
 | Librarian | **Verifier** | Fact-checks claims. Must be a *different* identity from whoever wrote the page, so nobody grades their own work |
@@ -150,6 +160,7 @@ v3 **stores** three independent facts and **derives** a one-line summary from th
 | `state` (exactly one) | `active` · `retired` · `hidden` | The page is superseded or deprecated (retired), or tombstoned or hidden (hidden). Does **not** touch review |
 | `review` (exactly one) | `unreviewed` · `checked` · `reviewed` | The librarian's verifier checks it (`checked`) or the human does (`reviewed`). Resets to `unreviewed` only when the **content** changes, never on a state change |
 | `problems` (zero or more) | Each one is `{kind, reason, by, at}`. Kinds: `inaccurate`, `disputed`, `source-changed`, `untrusted-input`, `invalid-hand-edit`, `update-requested` | Added by agents (`inaccurate` only), the librarian or the gatekeeper. Removed when resolved, and the resolution goes into history |
+| `reviewed_rev` | The revision id the latest `checked` or `reviewed` applies to, or empty | Set with each review. Lets a filter for reviewed content return that revision when the newest one is unreviewed (D22) |
 
 `update-requested` is the librarian's "mark for update by the writer with notes" (D25). It is a problem kind rather than a state because the page stays visible while it waits.
 
@@ -191,6 +202,8 @@ As the librarian, I want to:
 - **L24** notice changes made directly to the files (D17), validate them like any write, and flag any that fail so agents see the problem in the page's status. Offer the human an administrative command to check a page now or report that it changed.
 - **L25** send a bad page back to its writer (D25): add an `update-requested` problem with notes saying what is wrong and what a fix looks like, and follow up if it isn't fixed within a configured time.
 - **L26** revert a bad change, or hide a page, when a space's policy allows it (D25), with a reason recorded and the human able to undo my action.
+- **L27** watch my own review backlog (D22): report how many pages wait for a check and for how long, include it in the digest, and alert the human when it passes the configured limit.
+- **L28** check pages held by the global space's untrusted-input gate (D22) first, so they don't sit invisible for long.
 - **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
 
 ## Proposed: stories that seem to be missing
@@ -216,6 +229,7 @@ These came up when reading the seed list against DESIGN.md. Accept, reword or dr
 - **G17 (human) Restore a tombstoned page** before it is purged (D4).
 - **G18 (agent) Check the status of a flag I raised** (D13): pending, fixed, hidden, rejected with a reason, or escalated.
 - **G21 (agent) Learn which of my pages need an update** (D25), with the librarian's notes, so I can fix them.
+- **G22 (agent) Opt in to everything** when I search on purpose, including flagged, untrusted-input and unreviewed pages, with their status shown, for example when investigating a disputed claim.
 - **G20 (agent) Revoke a share** of a temporary page I own, so the identifier stops working before the page expires.
 - **G19 (human) Change policies in one place:** retention, flag visibility, gates, type definitions, provider and model choices. Policy changes are versioned like pages, so they can be audited and rolled back.
 
