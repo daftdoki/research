@@ -279,7 +279,9 @@ Answers go here as they are settled, with the date.
 - **Q5** "Knowledge base section", "topic", "area", "project", "personal" and "type" overlap. Which are separate dimensions? A proposal: *space* (who can see it: global, private, project, agent), *area* (PARA long-running responsibility, e.g. homelab, health), *project* (has a goal and an end, may map to one or more git repos), *topic* (subject), *type* (what the page is). Does that match how you think about it?
   - **Answer (2026-10-31):** Yes, I think thats a good consolidation.
 - **Q6** Can one page belong to several projects or areas, or exactly one?
+  - **Answer (2026-11-01):** a page belongs to only one space, project, area or other
 - **Q7** How should a project be identified when it spans several repos, or a repo holds several projects (monorepo)?
+  - **Answer (2026-11-01):** lets simplify the whole structure: we have a public space, and a repo space only for right now. We still have a short term or “working memory” feature available to agents by repo.
 
 **Ephemeral pages and working memory (A3, A14)**
 - **Q8** Which ephemerality conditions do you want? Candidates: a time limit, idle time, task closed, session ended, read once by the recipient, or the owner deletes it.
@@ -298,7 +300,9 @@ Answers go here as they are settled, with the date.
 - **Q13** Should a page be allowed to link to a page that doesn't exist yet (Wikipedia's "red links", which show what's missing)? Or must every link resolve on write (A10)?
   - **Answer (2026-10-31):** I think that linking to a page that doesn't exist yet is ok as long as we have a process for making sure that the links remain similar when they're created indepenently, e.g. if two agents want to link to a page that should be the same but name it slightly differently we should correct for that. These links should also show up in the graph so that we can see how many pages link to it and maybe take some action like creating that page. It should probably also be ok for a bunch of pages to link to a non-existent page and have that be ok. Following that link may just result in returning an index of pages that link to it, although that is just a casual thought.
 - **Q14** Should high-confidence link suggestions ever be added automatically, or always need the writer or librarian to accept them?
+  - **Answer (2026-11-01):** no
 - **Q15** Is there a rough cap on links per page you'd consider sprawl?
+  - **Answer (2026-11-01):** no cap
 
 **Write validation (A10)**
 - **Q16** How strict is "malformed": should a write with a missing source on a factual claim be rejected, or accepted as a draft with a warning?
@@ -314,6 +318,7 @@ Answers go here as they are settled, with the date.
   - **Answer (2026-10-31):** I think to start, and by default, no hard gate but consumers should always know its status so they can use that when reasoning about the information.
 - **Q20** Who passes the gate: you, the librarian, or automated checks alone, depending on the rule? How long can an agent wait for approval before it gives up?
 - **Q21** At what granularity do read-only and no-access rules apply: space, area, topic, type, tag, or single page?
+  - **Answer (2026-11-01):** start with space only
 
 **Raised by the first answers**
 - **Q23** One type per page, or several? Proposal: exactly one. A page that seems to be two types is usually two pages and should be split; area, topic and project already cover the other ways to group it. Agree?
