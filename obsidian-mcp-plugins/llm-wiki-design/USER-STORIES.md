@@ -435,6 +435,15 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
 - **Q59** With D41 and D42, every working-memory page is readable by every agent. Is that fine, or do you still want a private option for scratch notes, as A3 originally asked?
   - **Answer (2026-11-01):** everything visible is fine
 
+**Review of the proposed missing stories G1–G24 (2026-11-01)**
+
+Claude recommended, per story: accept G1 (ingest, early), G2, G3 (early), G4 (first version), G6 (later), G7 (later), G8 (later; read-only web view first), G9, G10, G11 (later), G13, G14 (later), G15–G19 and G21–G24; drop G5 for now (notices about pages only read were turned down in Q51); reword G12 to only "permanently remove a secret or personal data from history", since private spaces are deferred.
+
+- **Q60** Accept the recommendations above?
+  - **Answer (2026-11-01):** Agree with all the G’s.
+- **Q61** Where do G1's raw sources (articles, PDFs, transcripts) live: in the wiki, in the public space or a repo space, or somewhere else with the wiki keeping only summary pages?
+  - **Answer (2026-11-01):** About G1 - they live in the space the agent puts them in.
+
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
   - **Proposal to react to (2026-10-31):** five bundles that make a usable first version on their own:
