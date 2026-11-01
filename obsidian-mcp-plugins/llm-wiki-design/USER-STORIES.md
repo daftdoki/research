@@ -312,6 +312,7 @@ Answers go here as they are settled, with the date.
 - **Q38** How does a writer find out its page was marked `needs-update`? Options: listed in the session-start brief for that client; a query the agent runs; both. If the writing session is long gone, may any agent using the same client ID make the fix?
 - **Q39** When the librarian reverts, does it undo just the bad change, or roll the page back to its last good version (which also drops any later edits)?
 - **Q40** Does the single status word in v2 work for you, or is something missing?
+  - **Answer (2026-10-31):** I think the status collapse goes too far. If a page gets hidden or retired we lose the context about review status for example
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
