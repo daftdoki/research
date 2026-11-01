@@ -40,6 +40,12 @@ This is my list for now, but it's just a start. Not all of these things need to 
 I did not write user stories for the librarian role.
 - optionally being able *(cut off mid-sentence; see open questions)*
 
+## Stories added later by the creator
+
+Recorded as written, with the date.
+
+- **A17** (2026-10-31) If a session that created or modified a page is still active, its prompt hooks should surface the pages that need correction or attention as soon as they’re available so they stand a god chance of getting fixed while the context they were created in is still active.
+
 ---
 
 Everything below this line is a **proposal from Claude** for discussion. Nothing in it is agreed until it moves into the seed list or is marked accepted.
