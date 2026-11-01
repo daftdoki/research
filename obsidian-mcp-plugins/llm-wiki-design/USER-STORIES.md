@@ -112,6 +112,9 @@ Taken from the answers in [Open questions](#open-questions).
 - **D43** Working memory exists only inside repo spaces. An agent working outside any repo has none (Q57).
 - **D44** The untrusted-input gate on the public space (D22) is passed or rejected by the librarian, which escalates to the owner what it can't settle. The write itself succeeds; the page stays invisible to agents until it is checked, so no agent waits on the gate (Q20).
 - **D45** Raw sources (G1) live in whichever space the ingesting agent puts them in: the public space or its repo space (Q61).
+- **D46** Raw sources can be any file type, with no size limit. The service extracts their text so they can be searched (Q62).
+- **D47** Raw sources are never edited in place, but can be fully overwritten with a new file. The overwrite is a new version in the source's history, so pages that cite the old content can be detected and given a `source-changed` problem (Q63).
+- **D48** Pages in a repo space may cite raw sources in the public space. When a public page cites a raw source in a repo space, the librarian offers to copy the source into the public space, so public knowledge doesn't depend on a repo space that may later be cleaned up or restricted (Q64).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
 
 ## Proposal: storage (after D5, D11 and D15)
@@ -245,6 +248,9 @@ As the librarian, I want to:
 - **L29** batch pending topics (D29): group near-identical requests, gather what the pages that want each topic have in common, and put create, merge and reject proposals to the human in batches, with my recommendation for each.
 - **L30** apply topic decisions (D29): when a pending topic is approved or merged, update every page that named it; when it is rejected, retag the pages to the closest existing topic myself (Q47), recording the change and the reason in each page's history.
 - **L32** warn the human when a repo ID arrives from a git remote it hasn't been seen with before (D39), since that usually means a fork or copy is sharing the original's space.
+- **L33** extract searchable text from every raw source (D46): text layers from PDFs and documents, and for images and audio, OCR or transcription through the configured AI providers (D14). Re-extract when a source is overwritten.
+- **L34** when a raw source is overwritten (D47), find the pages that cite it and add a `source-changed` problem to each, so their writers check the new content.
+- **L35** when a public page cites a raw source in a repo space, offer to copy the source into the public space (D48).
 - **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
 
 ## Accepted: stories that were missing from the seed list
@@ -452,6 +458,9 @@ Claude recommended, per story: accept G1 (ingest, early), G2, G3 (early), G4 (fi
   - **Answer (2026-11-01):** no changes in place. Can be fully overwritten.
 - **Q64** Can a page in a repo space cite a raw source stored in the public space, and the other way round? With D41 every agent can read every space, so cross-space citations would work for reading. The question is whether a public page should depend on a repo space's source.
   - **Answer (2026-11-01):** as you suggested
+
+- **Q65** Q63 also asked about storing the same file twice: should a second upload with identical content point to the existing raw source instead of creating a copy? (Unanswered.)
+- **Q66** With no size limit, very large files (video, datasets) make the storage choice matter: plain files plus git, for example, handle large binaries badly. Is it fine for the service to keep raw sources in a separate blob store (content-addressed files on disk or an S3-compatible store) while pages stay plain markdown files?
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
