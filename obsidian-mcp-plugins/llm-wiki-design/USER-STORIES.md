@@ -351,6 +351,7 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
   - **Answer (2026-10-31):** Yes add that. It should also suggest topics to the writer
 
 - **Q47** When the human rejects a pending topic, should the librarian retag the affected pages to the closest existing topic itself, or send each page back to its writer with an `update-requested` problem?
+  - **Answer (2026-10-31):** a
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
