@@ -56,6 +56,26 @@ Taken from the answers in [Open questions](#open-questions).
 - **D6** Only the owner creates page types; the librarian may suggest them. Each type gets a written definition used to judge pages (Q12).
 - **D7** Links to pages that don't exist yet are allowed. They appear in the graph, and near-duplicate names get reconciled (Q13).
 - **D8** "Inaccurate" flags: the human and the librarian can hide or fix a page immediately; an agent can only flag it with a reason. The librarian reviews flags and escalates to the human what it can't settle. It decides whether to hide the page meanwhile (Q17).
+- **D9** One type per page. A page that seems to be two types is split (Q23).
+- **D10** Each type definition has: a one-sentence definition; what belongs and what doesn't, compared with the nearest other type; required fields; one good and one bad example (Q24).
+- **D11** Tombstone retention is configurable. Defaults: 30 days for temporary pages, 1 year for retired knowledge. Purging a temporary page also removes it from version history by default; that is configurable too (Q25).
+- **D12** A link name that nearly matches an existing page or alias fails the write with "did you mean". Problems are fixed at write time wherever possible, not left for later cleanup (Q26).
+- **D13** A page with an unreviewed "inaccurate" flag is shown with a warning by default; configurable to hide instead. The flagging agent isn't notified of the outcome but can look up the flag's status (Q27).
+- **D14** The librarian's AI work goes through API endpoints, local or hosted. Anthropic-style and OpenAI-style APIs first, others such as Bedrock later. Later still, it may drive an agent harness (for example Claude Code over its JSON stream) so subscriptions can be used (Q28).
+- **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
+
+## Proposal: storage (after D5, D11 and D15)
+
+Three of the answers pull against each other: plain files (D15), no git assumption (D5), and temporary pages purged from history by default (D11). Purging from git history means rewriting it, which is slow and breaks clones. So:
+
+| Data | Where it lives | History |
+|---|---|---|
+| **Durable pages** | Plain markdown files with frontmatter, in a normal directory tree, usable by Obsidian, editors and grep | A version store owned by the service, behind an interface. Git is one implementation; a content-addressed store is another. Rollback, diffs and per-agent activity (H4–H6) come from this interface, not from the backend's own tools |
+| **Temporary pages** (working notes, handoffs, scratch) | A separate area with its own retention, outside the durable tree and its history | Kept only until purge; purging deletes them outright, so nothing needs rewriting |
+| **Derived data** (search index, embeddings, link graph, wanted-pages counts, indexes and hubs) | A rebuildable side store | None; rebuilt from the pages |
+| **Audit log** (who did what, flags, gate decisions) | Append-only log owned by the service | Is the history |
+
+One consequence needs a decision (Q31): if the files can be edited directly, those edits skip the write checks.
 
 ## Proposed: roles beyond the three user types
 
@@ -123,6 +143,8 @@ As the librarian, I want to:
 - **L20** reconcile wanted pages (D7): when different pages link to targets that mean the same thing under different names, pick one name, rewrite the links or record the variant as an alias, and keep a count of how many pages want each missing page.
 - **L21** propose creating a wanted page once enough pages link to it, with a draft built from what the linking pages say about it.
 - **L22** keep type definitions (D6) applied: flag pages that don't fit their type's definition, and gather evidence when a new type might be warranted.
+- **L23** run my AI work through the configured providers (D14), with a model chosen per job, so cheap or local models do triage and stronger ones do verification, and report what each job cost.
+- **L24** notice changes made directly to the files (if allowed, Q31), validate them like any write, and quarantine any that fail rather than letting them reach agents.
 - **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
 
 ## Proposed: stories that seem to be missing
@@ -146,6 +168,8 @@ These came up when reading the seed list against DESIGN.md. Accept, reword or dr
 - **G15 (agent) Follow a link to a page that doesn't exist yet** and get a useful answer: the pages that link to it, what they say about it, existing pages with similar names, and a way to create it.
 - **G16 (human, agent) Read the type definitions** (D6) as pages in the wiki, so agents can check what a page should be before writing it, and the validator and librarian judge pages against the same text.
 - **G17 (human) Restore a tombstoned page** before it is purged (D4).
+- **G18 (agent) Check the status of a flag I raised** (D13): pending, fixed, hidden, rejected with a reason, or escalated.
+- **G19 (human) Change policies in one place:** retention, flag visibility, gates, type definitions, provider and model choices. Policy changes are versioned like pages, so they can be audited and rolled back.
 
 ## Open questions
 
@@ -210,6 +234,11 @@ Answers go here as they are settled, with the date.
   - **Answer (2026-10-31):** It should use AI through popular APIs and support both local and hosted because they're just an API endpoint. Anthropic and OpenAI style interfaces should be supported to start. Maybe bedrock or others in the future. In the future it might be nice to be able to drive an agent harness for this work so that subscriptions could be used. e.g., driving claude code via json stream.
 - **Q29** Since the backend is open (D5), does any of these matter: editing pages with ordinary tools (Obsidian, a text editor, grep) on a local copy; offline access; or is "only through the API and web view" fine?
   - **Answer (2026-10-31):** My preference would be that they're simple files easily used elsewhere, but I will entertain other options that provide different/better semantics if it's worth it.
+
+**Raised by the second answers**
+- **Q30** "Fix on write wherever we can": does that mean (a) the service fixes safe, unambiguous problems itself and reports what it changed (for example normalizing a date, quoting a timestamp, rewriting a link that exactly matches an alias) and fails only on problems that need judgement; or (b) the service never changes what was sent, and every problem fails the write with a precise fix for the writer to apply?
+- **Q31** If pages are plain files, may you (or a tool such as Obsidian) edit them directly, outside the API? If yes, the service has to notice those edits and check them afterwards, quarantining bad ones (L24). If no, files are a read-only export, and every change goes through the API or web view.
+- **Q32** Is one policy configuration for the whole wiki enough, or do you want overrides per space (for example stricter gates on the global space, looser rules in agent spaces)?
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
