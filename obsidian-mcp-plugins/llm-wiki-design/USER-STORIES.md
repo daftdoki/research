@@ -181,6 +181,7 @@ Answers go here as they are settled, with the date.
 - **Q2** Is the librarian an LLM agent with extra rights, a deterministic service (scripts and jobs), or both? Can there be more than one librarian (for example one per area)?
   - **Answer (2026-10-31):** It could be part of the service, or a separate agent, but should be automatic and constant. It's more the responsibility of the service itself conceptually and could be several different things that make up a conceptual "librarian". Thoughts?
 - **Q3** Should agents be identified per harness (claude-code), per harness per machine (claude-code@nas), or per session? Per session gives the best audit trail (H4) but makes permissions harder.
+  - **Answer (2026-10-31):** I'm not settled on the answer to this, but I think by some kind of client ID maybe? Say a config file in a repository that the client uses to identify server, settings, and its ID. Eventually this could be a cryptographically secure ID but probably not to start.
 - **Q4** Your last line, "- optionally being able", was cut off. What was it going to say?
 
 **Organization (A2, A4, A9)**
@@ -191,9 +192,11 @@ Answers go here as they are settled, with the date.
 
 **Ephemeral pages and working memory (A3, A14)**
 - **Q8** Which ephemerality conditions do you want? Candidates: a time limit, idle time, task closed, session ended, read once by the recipient, or the owner deletes it.
+  - **Answer (2026-10-31):** I think time limit and owner deleting it to start.
 - **Q9** When an ephemeral page is cleaned up, should it be gone from version history too, or just hidden and kept for audit? Keeping everything in git makes "cleanup" mean "hidden"; truly deleting means ephemeral pages shouldn't live in git at all.
   - **Answer (2026-10-31):** Maybe something like tombstoned so that it's around for a while, but mostly invisible and maybe accessible by the human so they can view the history. Unsure on the specifics, but not immediately gone to parts of the application. Don't assume our backing is git.
 - **Q10** "Sharable" with whom: a named agent, any agent on the same task, project or area?
+  - **Answer (2026-10-31):** To start any agent, perhaps it marks it as accessible to others then can send them a unique identifier they can use to access it.
 - **Q11** In A14, "not committed to the repository I'm working on" means the project's code repo, right? The wiki's own store would still be versioned (A15).
 
 **Types (A5)**
@@ -216,6 +219,7 @@ Answers go here as they are settled, with the date.
 
 **Gating (H3, H7)**
 - **Q19** Which changes must wait for a gate, and which can land immediately? For example: new shared pages gated, edits to existing shared pages not; certain types or tags always gated.
+  - **Answer (2026-10-31):** I think to start, and by default, no hard gate but consumers should always know its status so they can use that when reasoning about the information.
 - **Q20** Who passes the gate: you, the librarian, or automated checks alone, depending on the rule? How long can an agent wait for approval before it gives up?
 - **Q21** At what granularity do read-only and no-access rules apply: space, area, topic, type, tag, or single page?
 
@@ -237,8 +241,11 @@ Answers go here as they are settled, with the date.
 
 **Raised by the second answers**
 - **Q30** "Fix on write wherever we can": does that mean (a) the service fixes safe, unambiguous problems itself and reports what it changed (for example normalizing a date, quoting a timestamp, rewriting a link that exactly matches an alias) and fails only on problems that need judgement; or (b) the service never changes what was sent, and every problem fails the write with a precise fix for the writer to apply?
+  - **Answer (2026-10-31):** (b), the writer should apply it
 - **Q31** If pages are plain files, may you (or a tool such as Obsidian) edit them directly, outside the API? If yes, the service has to notice those edits and check them afterwards, quarantining bad ones (L24). If no, files are a read-only export, and every change goes through the API or web view.
+  - **Answer (2026-10-31):** Yes, but this shouldn't be the norm. It should be possible, but similar to editing a database by hand. If something gets screwed up, it's the editors responsibility not to do that. A process should eventually see the errors and flag the page, though. And the human editor should have a way to check the page after they write it and/or notify the service that it has been changed. This does not have to be a first class feature since it's more of an administrative back end thing.
 - **Q32** Is one policy configuration for the whole wiki enough, or do you want overrides per space (for example stricter gates on the global space, looser rules in agent spaces)?
+  - **Answer (2026-10-31):** overrides per space, or rather different policies per space with sensible defaults
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
