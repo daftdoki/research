@@ -117,26 +117,32 @@ Answers go here as they are settled, with the date.
 
 **Roles and scope**
 - **Q1** How many humans will use this? Just you, or family or collaborators? This decides whether Reviewer and Reader roles matter now.
+  - **Answer (2026-10-31):** Just one human.
 - **Q2** Is the librarian an LLM agent with extra rights, a deterministic service (scripts and jobs), or both? Can there be more than one librarian (for example one per area)?
+  - **Answer (2026-10-31):** It could be part of the service, or a separate agent, but should be automatic and constant. It's more the responsibility of the service itself conceptually and could be several different things that make up a conceptual "librarian". Thoughts?
 - **Q3** Should agents be identified per harness (claude-code), per harness per machine (claude-code@nas), or per session? Per session gives the best audit trail (H4) but makes permissions harder.
 - **Q4** Your last line, "- optionally being able", was cut off. What was it going to say?
 
 **Organization (A2, A4, A9)**
 - **Q5** "Knowledge base section", "topic", "area", "project", "personal" and "type" overlap. Which are separate dimensions? A proposal: *space* (who can see it: global, private, project, agent), *area* (PARA long-running responsibility, e.g. homelab, health), *project* (has a goal and an end, may map to one or more git repos), *topic* (subject), *type* (what the page is). Does that match how you think about it?
+  - **Answer (2026-10-31):** Yes, I think thats a good consolidation.
 - **Q6** Can one page belong to several projects or areas, or exactly one?
 - **Q7** How should a project be identified when it spans several repos, or a repo holds several projects (monorepo)?
 
 **Ephemeral pages and working memory (A3, A14)**
 - **Q8** Which ephemerality conditions do you want? Candidates: a time limit, idle time, task closed, session ended, read once by the recipient, or the owner deletes it.
 - **Q9** When an ephemeral page is cleaned up, should it be gone from version history too, or just hidden and kept for audit? Keeping everything in git makes "cleanup" mean "hidden"; truly deleting means ephemeral pages shouldn't live in git at all.
+  - **Answer (2026-10-31):** Maybe something like tombstoned so that it's around for a while, but mostly invisible and maybe accessible by the human so they can view the history. Unsure on the specifics, but not immediately gone to parts of the application. Don't assume our backing is git.
 - **Q10** "Sharable" with whom: a named agent, any agent on the same task, project or area?
 - **Q11** In A14, "not committed to the repository I'm working on" means the project's code repo, right? The wiki's own store would still be versioned (A15).
 
 **Types (A5)**
 - **Q12** A starting list focused on what a page *is*: knowledge (facts about something), procedure (how to do something), decision (what was chosen and why), reference (lookup material), source (summary of an ingested item), working note (ephemeral), topic (hub). What's missing or wrong? Who approves a new type: only you?
+  - **Answer (2026-10-31):** I'm not sure of the starting types, although that seems like possibly a good starting list. I'd want to continue refining this as we get crisper with this. Good start. Specific list still open. Creating a type should be gated by me, although I'll take suggestions when it makes sense. Should a page be able to be of multiple types? I'd want to write clear definitions of what each type should be to use as a way to evaluate what a page should or shouldn't be.
 
 **Links and suggestions (A6, A7, A8)**
 - **Q13** Should a page be allowed to link to a page that doesn't exist yet (Wikipedia's "red links", which show what's missing)? Or must every link resolve on write (A10)?
+  - **Answer (2026-10-31):** I think that linking to a page that doesn't exist yet is ok as long as we have a process for making sure that the links remain similar when they're created indepenently, e.g. if two agents want to link to a page that should be the same but name it slightly differently we should correct for that. These links should also show up in the graph so that we can see how many pages link to it and maybe take some action like creating that page. It should probably also be ok for a bunch of pages to link to a non-existent page and have that be ok. Following that link may just result in returning an index of pages that link to it, although that is just a casual thought.
 - **Q14** Should high-confidence link suggestions ever be added automatically, or always need the writer or librarian to accept them?
 - **Q15** Is there a rough cap on links per page you'd consider sprawl?
 
@@ -145,6 +151,7 @@ Answers go here as they are settled, with the date.
 
 **Inaccuracy (A16)**
 - **Q17** Who can mark a page inaccurate: any agent, or only trusted ones? Does it hide the page immediately, or only after the librarian or a human confirms? Hiding immediately lets one misbehaving agent hide good pages.
+  - **Answer (2026-10-31):** A human, librarian, or an agent. A human and a librarian should be able to make hidden immediately, or fix it so that it is accurate. An agent should be able to flag it as innacurate with a reason and then have that reviewed by a librarian next. If the librarian can't handle it, then it could be escalated to a human. The librarian can choose whether to hide it or not while it is pending human review.
 - **Q18** Are "inaccurate", "outdated" and "disputed" different states for you?
 
 **Gating (H3, H7)**
@@ -154,3 +161,4 @@ Answers go here as they are settled, with the date.
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
+  - **Answer (2026-10-31):** Not sure yet.
