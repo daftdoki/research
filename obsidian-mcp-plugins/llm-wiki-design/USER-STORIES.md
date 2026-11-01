@@ -425,7 +425,9 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
 
 **Raised by the second round on spaces**
 - **Q58** A fork copies the config file, so the fork and the original would share one repo space. Is that fine, should the owner change the ID after forking, or should the service warn when the same ID shows up from a different remote?
+  - **Answer (2026-11-01):** C
 - **Q59** With D41 and D42, every working-memory page is readable by every agent. Is that fine, or do you still want a private option for scratch notes, as A3 originally asked?
+  - **Answer (2026-11-01):** everything visible is fine
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
