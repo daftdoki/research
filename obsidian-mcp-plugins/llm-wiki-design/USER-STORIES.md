@@ -364,6 +364,7 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
   - **Answer (2026-10-31):** yes
 
 - **Q49** When undoing just the bad change (D32) conflicts with later edits to the same part of the page, what should happen: the librarian resolves the conflict itself, hands it to the latest writer as `update-requested`, or escalates to the human?
+  - **Answer (2026-10-31):** B
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
