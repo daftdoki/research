@@ -86,6 +86,10 @@ Taken from the answers in [Open questions](#open-questions).
 - **D26** Status is as simple as it can be without losing function (Q36). Folding it into one word went too far: review status must survive a page being hidden or retired (Q40).
 - **D27** A failed write gets a clear description of each problem. The writer fixes everything except minor syntax, for which the service may suggest the exact change (Q37).
 - **D28** The first version is the five bundles in the Q22 proposal (Q22).
+- **D30** Status v3 uses five lifecycle values: `active`, `superseded`, `deprecated`, `hidden`, `tombstoned` (Q48).
+- **D31** A writer learns about `update-requested` problems on its pages both ways: listed in the session-start brief for its client, and through a query. Any agent using the same client ID may make the fix (Q38).
+- **D32** A librarian revert undoes only the bad change, keeping later edits (Q39).
+- **D33** A factual page without sources is not rejected. It lands with an `unsourced` problem, in every space (Q16).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
 
 ## Proposal: storage (after D5, D11 and D15)
@@ -158,14 +162,14 @@ v3 **stores** three independent facts and **derives** a one-line summary from th
 
 | Stored field | Values | Changes when |
 |---|---|---|
-| `state` (exactly one) | `active` · `retired` · `hidden` | The page is superseded or deprecated (retired), or tombstoned or hidden (hidden). Does **not** touch review |
+| `state` (exactly one) | `active` · `superseded` · `deprecated` · `hidden` · `tombstoned` | `superseded`: replaced by another page, named in the reasons. `deprecated`: no longer right, no replacement. `hidden`: withheld from agents, for example pending review of a flag. `tombstoned`: removed and awaiting purge (D4, D11). Does **not** touch review (D30) |
 | `review` (exactly one) | `unreviewed` · `checked` · `reviewed` | The librarian's verifier checks it (`checked`) or the human does (`reviewed`). Resets to `unreviewed` only when the **content** changes, never on a state change |
-| `problems` (zero or more) | Each one is `{kind, reason, by, at}`. Kinds: `inaccurate`, `disputed`, `source-changed`, `untrusted-input`, `invalid-hand-edit`, `update-requested` | Added by agents (`inaccurate` only), the librarian or the gatekeeper. Removed when resolved, and the resolution goes into history |
+| `problems` (zero or more) | Each one is `{kind, reason, by, at}`. Kinds: `inaccurate`, `disputed`, `source-changed`, `untrusted-input`, `invalid-hand-edit`, `update-requested`, `unsourced` | Added by agents (`inaccurate` only), the librarian or the gatekeeper. Removed when resolved, and the resolution goes into history |
 | `reviewed_rev` | The revision id the latest `checked` or `reviewed` applies to, or empty | Set with each review. Lets a filter for reviewed content return that revision when the newest one is unreviewed (D22) |
 
 `update-requested` is the librarian's "mark for update by the writer with notes" (D25). It is a problem kind rather than a state because the page stays visible while it waits.
 
-**Derived summary** (computed, never stored), e.g. `active · reviewed · 1 problem (inaccurate)` or `hidden · checked`. Search results show the summary. Reads and filters use the stored fields: for example, "active, at least checked, no open problems".
+**Derived summary** (computed, never stored), e.g. `active · reviewed · 1 problem (inaccurate)`, `superseded · reviewed` or `tombstoned · checked`. Search results show the summary. Reads and filters use the stored fields: for example, "active, at least checked, no open problems".
 
 ## Draft: librarian stories (v1, revised after the first answers)
 
@@ -202,7 +206,7 @@ As the librarian, I want to:
 - **L23** run my AI work through the configured providers (D14), with a model chosen per job, so cheap or local models do triage and stronger ones do verification, and report what each job cost.
 - **L24** notice changes made directly to the files (D17), validate them like any write, and flag any that fail so agents see the problem in the page's status. Offer the human an administrative command to check a page now or report that it changed.
 - **L25** send a bad page back to its writer (D25): add an `update-requested` problem with notes saying what is wrong and what a fix looks like, and follow up if it isn't fixed within a configured time.
-- **L26** revert a bad change, or hide a page, when a space's policy allows it (D25), with a reason recorded and the human able to undo my action.
+- **L26** revert a bad change, or hide a page, when a space's policy allows it (D25), with a reason recorded and the human able to undo my action. A revert undoes only that change and keeps later edits (D32); if later edits conflict with the revert, see Q49.
 - **L27** watch my own review backlog (D22): report how many pages wait for a check and for how long, include it in the digest, and alert the human when it passes the configured limit.
 - **L28** check pages held by the global space's untrusted-input gate (D22) first, so they don't sit invisible for long.
 - **L29** batch pending topics (D29): group near-identical requests, gather what the pages that want each topic have in common, and put create, merge and reject proposals to the human in batches, with my recommendation for each.
@@ -231,7 +235,7 @@ These came up when reading the seed list against DESIGN.md. Accept, reword or dr
 - **G16 (human, agent) Read the type definitions** (D6) as pages in the wiki, so agents can check what a page should be before writing it, and the validator and librarian judge pages against the same text.
 - **G17 (human) Restore a tombstoned page** before it is purged (D4).
 - **G18 (agent) Check the status of a flag I raised** (D13): pending, fixed, hidden, rejected with a reason, or escalated.
-- **G21 (agent) Learn which of my pages need an update** (D25), with the librarian's notes, so I can fix them.
+- **G21 (agent) Learn which of my client's pages need an update** (D25, D31), with the librarian's notes, from my session-start brief or by asking, so I can fix them even if another session wrote them.
 - **G23 (agent) Get topic suggestions** for a page, on demand and when I publish: a few existing topics that clearly fit, so I reuse them instead of inventing new ones (D29).
 - **G22 (agent) Opt in to everything** when I search on purpose, including flagged, untrusted-input and unreviewed pages, with their status shown, for example when investigating a disputed claim.
 - **G20 (agent) Revoke a share** of a temporary page I own, so the identifier stops working before the page expires.
@@ -358,6 +362,8 @@ Claude reviewed D22 at the creator's request. Findings: D22 already coexists wit
 
 - **Q48** Should status v3 bring back finer lifecycle values: `active` · `superseded` · `deprecated` · `hidden` · `tombstoned`? Superseded points to a replacement while deprecated is simply no longer right, and hidden (pending review) differs from tombstoned (awaiting purge).
   - **Answer (2026-10-31):** yes
+
+- **Q49** When undoing just the bad change (D32) conflicts with later edits to the same part of the page, what should happen: the librarian resolves the conflict itself, hands it to the latest writer as `update-requested`, or escalates to the human?
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
