@@ -72,7 +72,7 @@ Taken from the answers in [Open questions](#open-questions).
 - **D23** The client config file holds no secret; the token lives in an environment variable or the keychain. Harness and session are recorded as unverified labels next to the client ID (Q33).
 - **D24** Agents that receive a shared temporary page can read it but not edit it. The owner can revoke a share (Q34).
 - **D25** What the librarian may do afterwards to a bad page in a widely shared space is configurable. By default it may hide the page, change its status, revert the change, or mark the page for update by its writer with notes about what is wrong (Q35).
-- **D26** Status is as simple as it can be without losing function (Q36).
+- **D26** Status is as simple as it can be without losing function (Q36). Folding it into one word went too far: review status must survive a page being hidden or retired (Q40).
 - **D27** A failed write gets a clear description of each problem. The writer fixes everything except minor syntax, for which the service may suggest the exact change (Q37).
 - **D28** The first version is the five bundles in the Q22 proposal (Q22).
 - **D15** Preference: pages are simple files that are easy to use elsewhere. Other storage is acceptable only if it gives clearly better semantics (Q29).
@@ -139,21 +139,21 @@ area    = "homelab"                       # default area
 - **Keep the credential out of the file.** The file gets committed, so if the client ID ever becomes a credential it would leak into git history. Keep the ID a public label and put the secret elsewhere from day one.
 - **Record more than the client ID.** One ID per repo means every agent working in that repo looks the same in the audit log. Each write would therefore also record the harness (claude-code, codex) and session as self-reported labels. They are useful for auditing but not trusted for permissions until identity is cryptographic.
 
-## Proposal: the status every result carries (v2, simplified after D26)
+## Proposal: the status every result carries (v3, after Q40)
 
-The earlier three-field version is in this file's history. This version gives every page **one status word plus a list of reasons**. Consumers reason over the word; the reasons say why. Exactly one word applies, picked by the first match in this order:
+v1 (three fields) and v2 (one word) are in this file's history. v2 lost facts that must survive together: a page hidden or retired after review should still say it was reviewed (Q40).
 
-| Status | Meaning | Who sets it |
+v3 **stores** three independent facts and **derives** a one-line summary from them for display. Nothing is lost, and agents still get something they can read at a glance.
+
+| Stored field | Values | Changes when |
 |---|---|---|
-| `hidden` | Tombstoned or hidden by the librarian or human. Agents never see it; the human can | Librarian, human, expiry |
-| `retired` | Superseded or deprecated; the reasons name the replacement, if any | Librarian, human |
-| `needs-update` | Sent back to its writer with notes (D25) | Librarian, human |
-| `flagged` | Has an open problem: an inaccurate flag, a dispute, a source that changed, written from untrusted input, an invalid hand edit | Agents (inaccurate flags only), librarian, gatekeeper |
-| `reviewed` | Checked by the human | Human |
-| `checked` | Checked by the librarian's verifier | Librarian |
-| `unreviewed` | Nobody has checked it since it last changed | Default after any content edit |
+| `state` (exactly one) | `active` · `retired` · `hidden` | The page is superseded or deprecated (retired), or tombstoned or hidden (hidden). Does **not** touch review |
+| `review` (exactly one) | `unreviewed` · `checked` · `reviewed` | The librarian's verifier checks it (`checked`) or the human does (`reviewed`). Resets to `unreviewed` only when the **content** changes, never on a state change |
+| `problems` (zero or more) | Each one is `{kind, reason, by, at}`. Kinds: `inaccurate`, `disputed`, `source-changed`, `untrusted-input`, `invalid-hand-edit`, `update-requested` | Added by agents (`inaccurate` only), the librarian or the gatekeeper. Removed when resolved, and the resolution goes into history |
 
-A page can be both human-reviewed and flagged. It then shows `flagged`, and the full detail is in the reasons and the page history. That trades a little detail in the one word for something an agent can act on at a glance.
+`update-requested` is the librarian's "mark for update by the writer with notes" (D25). It is a problem kind rather than a state because the page stays visible while it waits.
+
+**Derived summary** (computed, never stored), e.g. `active · reviewed · 1 problem (inaccurate)` or `hidden · checked`. Search results show the summary. Reads and filters use the stored fields: for example, "active, at least checked, no open problems".
 
 ## Draft: librarian stories (v1, revised after the first answers)
 
@@ -189,7 +189,7 @@ As the librarian, I want to:
 - **L22** keep type definitions (D6) applied: flag pages that don't fit their type's definition, and gather evidence when a new type might be warranted.
 - **L23** run my AI work through the configured providers (D14), with a model chosen per job, so cheap or local models do triage and stronger ones do verification, and report what each job cost.
 - **L24** notice changes made directly to the files (D17), validate them like any write, and flag any that fail so agents see the problem in the page's status. Offer the human an administrative command to check a page now or report that it changed.
-- **L25** send a bad page back to its writer (D25): set it to `needs-update` with notes saying what is wrong and what a fix looks like, and follow up if it isn't fixed within a configured time.
+- **L25** send a bad page back to its writer (D25): add an `update-requested` problem with notes saying what is wrong and what a fix looks like, and follow up if it isn't fixed within a configured time.
 - **L26** revert a bad change, or hide a page, when a space's policy allows it (D25), with a reason recorded and the human able to undo my action.
 - **L19** have every action I take be attributed to me, reversible, and within limits a human set, so I can't approve my own policy changes or bulk-edit without a cap.
 
@@ -313,6 +313,8 @@ Answers go here as they are settled, with the date.
 - **Q39** When the librarian reverts, does it undo just the bad change, or roll the page back to its last good version (which also drops any later edits)?
 - **Q40** Does the single status word in v2 work for you, or is something missing?
   - **Answer (2026-10-31):** I think the status collapse goes too far. If a page gets hidden or retired we lose the context about review status for example
+
+- **Q41** Does v3 (stored state, review and problems, plus a derived summary) fix the problem without being too complex?
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
