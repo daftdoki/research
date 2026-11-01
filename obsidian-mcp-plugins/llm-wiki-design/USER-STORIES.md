@@ -447,8 +447,11 @@ Claude recommended, per story: accept G1 (ingest, early), G2, G3 (early), G4 (fi
 
 **Raised by raw sources (D45)**
 - **Q62** Can raw sources be binary (PDF, images, audio) as well as text? If so, is there a size limit per file, and should the service extract text from them so they can be searched?
+  - **Answer (2026-11-01):** yes, any file type. No size limit. Extract text for searching.
 - **Q63** Are raw sources immutable once stored, so they can only be tombstoned and never edited, as Karpathy has it? And should storing the same source twice (same content hash) point to the existing copy instead of duplicating it?
+  - **Answer (2026-11-01):** no changes in place. Can be fully overwritten.
 - **Q64** Can a page in a repo space cite a raw source stored in the public space, and the other way round? With D41 every agent can read every space, so cross-space citations would work for reading. The question is whether a public page should depend on a repo space's source.
+  - **Answer (2026-11-01):** as you suggested
 
 **Priorities**
 - **Q22** If you could only have five of these stories in the first usable version, which five?
