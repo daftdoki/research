@@ -1,0 +1,5 @@
+Writing your own firmware for the Divoom Pixoo 64 is practical, and most of the groundwork is already public. The Wi-Fi board carries a stock ESP32-WROVER-IE, and on the examined unit flash encryption and secure boot are off, so the full flash can be read out and unsigned images written after opening the case and wiring a 3.3 V UART adapter to the back-side pads. The LED panel is driven by a separate AT32F413 MCU that accepts whole 64x64 RGB frames over SPI, so custom code only has to replace the ESP32 application. ESPHome ships a built-in `pixoo` platform, and [simplyRoba/pixoo-firmware](https://github.com/simplyRoba/pixoo-firmware) provides a complete ESPHome-based replacement. Only one board revision was examined, and no full stock image is published to restore from, so back up the flash before writing anything.
+
+- Main chip: ESP32-WROVER-IE with 8 MB flash, no flash encryption or secure boot on the examined unit.
+- Access: program through the back-side `TX`/`RX`/`GND`/`IO0` pads at 230400 baud; USB-C only supplies power.
+- Panel: the stock panel firmware stays in place, and the ESP32 sends 12 KB RGB frames over SPI in a simple packet format.
