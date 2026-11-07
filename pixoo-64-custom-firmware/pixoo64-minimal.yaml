@@ -1,0 +1,65 @@
+# Minimal ESPHome config for a Divoom Pixoo 64 (mainboard REV1.1, ESP32-WROVER-IE).
+# Assembled from the ESPHome `pixoo` docs and simplyRoba/pixoo-firmware docs/hardware.md.
+# NOT tested on hardware. Back up the full 8 MB flash before writing anything.
+esphome:
+  name: pixoo64
+  on_boot:
+    priority: 800
+    then:
+      - output.turn_on: led_rail        # see note on `output:` about soft-start
+
+esp32:
+  board: esp-wrover-kit
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+
+psram:
+
+logger:            # UART0 = back-side TX/RX pads, 115200
+api:
+ota:
+  - platform: esphome
+wifi:
+  ap: {}           # fallback AP for first provisioning
+captive_portal:
+
+output:
+  # GPIO22 gates the 5 V LED rail through P-FETs. An abrupt turn-on can brown out
+  # the ESP32; simplyRoba ramps it with LEDC PWM over ~120 ms (1 kHz).
+  - platform: ledc
+    id: led_rail
+    pin: GPIO22
+    frequency: 1kHz
+  - platform: ledc
+    id: buzzer_pwm
+    pin: GPIO23
+
+spi:
+  clk_pin: GPIO25
+  mosi_pin: GPIO33   # write-only link to the AT32F413 panel MCU
+
+display:
+  - platform: pixoo
+    id: pixoo_display
+    model: 64x64
+    cs_pin: GPIO26
+    lambda: |-
+      it.fill(Color(0, 0, 0));
+      it.line(0, 0, 63, 63, Color(0, 255, 0));
+
+light:
+  - platform: pixoo
+    pixoo_id: pixoo_display
+    name: "Pixoo Brightness"
+
+binary_sensor:
+  - platform: gpio
+    pin: { number: GPIO35, inverted: true }   # S1 power button (input-only pin, active-low)
+    name: "Power button"
+  - platform: gpio
+    pin: { number: GPIO34, inverted: true }   # S2 brightness button (input-only pin, active-low)
+    name: "Brightness button"
+
+rtttl:
+  output: buzzer_pwm
